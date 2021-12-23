@@ -1,7 +1,12 @@
 {
   "compilerOptions": {
+    "target": "es5",
     "lib": ["ESNext"],
     "strict": true,
-    "noEmit": true
-  }
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+    "outDir": "./dist"
+  },
+  "include": ["./src"]
 }
