@@ -1,0 +1,40 @@
+{
+  "name": "ndarray-methods",
+  "version": "1.0.0",
+  "description": "Convenient methods for JavaScript built-in multi-dimensional arrays.",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "npm test.js",
+    "build": "babel ./src -d ./lib --extensions .ts -s",
+    "start": "npm run build --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/graphemecluster/ndarray-methods.git"
+  },
+  "keywords": [
+    "javascript",
+    "typescript",
+    "multi-dimensional",
+    "multidimensional",
+    "array",
+    "vector",
+    "matrix",
+    "ndarray",
+    "data-structure"
+  ],
+  "author": "graphemecluster",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/graphemecluster/ndarray-methods/issues"
+  },
+  "homepage": "https://github.com/graphemecluster/ndarray-methods#readme",
+  "devDependencies": {
+    "@babel/cli": "^7.16.0",
+    "@babel/core": "^7.16.5",
+    "@babel/preset-env": "^7.16.5",
+    "@babel/preset-typescript": "^7.16.5",
+    "babel-preset-minify": "^0.5.1",
+    "typescript": "^4.5.4"
+  }
+}
