@@ -8,5 +8,13 @@
     "declarationMap": true,
     "outDir": "./dist"
   },
-  "include": ["./src"]
+  "include": ["./src"],
+  "typedocOptions": {
+    "entryPoints": ["./src/main.ts"],
+    "out": "docs",
+    "sort": "source-order",
+    "githubPages": false,
+    "disableSources": true,
+    "hideBreadcrumbs": true
+  }
 }
