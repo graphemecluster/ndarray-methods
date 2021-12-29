@@ -1,0 +1,11 @@
+
+/src
+/test
+
+tsconfig.json
+webpack.config.js
+jest.config.js
+.prettierrc.json
+
+.vscode
+.git

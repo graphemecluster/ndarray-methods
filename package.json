@@ -2,7 +2,11 @@
   "name": "ndarray-methods",
   "version": "1.0.0",
   "description": "Convenient methods for JavaScript built-in multi-dimensional arrays.",
-  "main": "src/index.ts",
+  "main": "./dist/bundle.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "./dist"
+  ],
   "scripts": {
     "test": "jest",
     "build": "webpack",
