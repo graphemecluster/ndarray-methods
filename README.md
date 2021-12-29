@@ -1,6 +1,10 @@
 # ndarray-methods
 
+[![npm](https://img.shields.io/npm/v/ndarray-methods)](https://www.npmjs.com/package/ndarray-methods) [![types](https://img.shields.io/npm/types/ndarray-methods)](https://www.npmjs.com/package/ndarray-methods) [![license](https://img.shields.io/npm/l/ndarray-methods)](https://www.npmjs.com/package/ndarray-methods)
+
 Convenient methods for JavaScript built-in multi-dimensional arrays.
+
+Zero dependencies. Written in TypeScript.
 
 ## Getting Started
 
@@ -49,7 +53,7 @@ A1026,baz,480`
 */
 ```
 
-# Trivial
+## Trivial
 
 This library is originally intended to extend the built-in `Array.prototype`, so many methods are prefixed with the word `nested`.
 
@@ -81,20 +85,20 @@ The documentation is written based on the declaration files, so as to make the w
 
 ### Functions
 
-- [buildShape](modules.md#buildshape)
-- [shape, shapeAtOrigin](modules.md#shape-shapeatorigin)
-- [nestedMap](modules.md#nestedmap)
-- [nestedForEach](modules.md#nestedforeach)
-- [nestedSplit](modules.md#nestedsplit)
-- [nestedJoin](modules.md#nestedjoin)
-- [nestedFill](modules.md#nestedfill)
-- [nestedFillMap](modules.md#nestedfillmap)
-- [nestedIncludes, nestedIncludesFromLast](modules.md#nestedincludes-nestedincludesfromlast)
-- [nestedIndexOf, nestedLastIndexOf](modules.md#nestedindexof-nestedlastindexof)
-- [nestedFind, nestedFindLast](modules.md#nestedfind-nestedfindlast)
-- [nestedFindIndex, nestedFindLastIndex](modules.md#nestedfindindex-nestedfindlastindex)
-- [nestedSome, nestedSomeFromLast](modules.md#nestedsome-nestedsomefromlast)
-- [nestedEvery, nestedEveryFromLast](modules.md#nestedevery-nestedeveryfromlast)
+- [buildShape](#buildshape)
+- [shape, shapeAtOrigin](#shape-shapeatorigin)
+- [nestedMap](#nestedmap)
+- [nestedForEach](#nestedforeach)
+- [nestedSplit](#nestedsplit)
+- [nestedJoin](#nestedjoin)
+- [nestedFill](#nestedfill)
+- [nestedFillMap](#nestedfillmap)
+- [nestedIncludes, nestedIncludesFromLast](#nestedincludes-nestedincludesfromlast)
+- [nestedIndexOf, nestedLastIndexOf](#nestedindexof-nestedlastindexof)
+- [nestedFind, nestedFindLast](#nestedfind-nestedfindlast)
+- [nestedFindIndex, nestedFindLastIndex](#nestedfindindex-nestedfindlastindex)
+- [nestedSome, nestedSomeFromLast](#nestedsome-nestedsomefromlast)
+- [nestedEvery, nestedEveryFromLast](#nestedevery-nestedeveryfromlast)
 
 ## Functions
 
