@@ -21,8 +21,6 @@ Also, the first argument of each function must be an array, so that you can "pol
 (_Currently not recommended_)
 
 ```js
-import NDArray from "ndarray-methods";
-
 Object.entries(NDArray).forEach(([name, method]) => {
   if (!Array.prototype[name])
     Object.defineProperty(Array.prototype, name, {
@@ -33,7 +31,7 @@ Object.entries(NDArray).forEach(([name, method]) => {
 });
 ```
 
-In the documentation, **all the examples are written in the "polyfilled" style.**
+In the documentation, **all the examples are written in the "polyfilled" style**.
 
 A new ECMAScript Proposal with these methods will be made soon.
 
