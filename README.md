@@ -6,54 +6,13 @@ Convenient methods for JavaScript built-in multi-dimensional arrays.
 
 Zero dependencies. Written in TypeScript.
 
-## Getting Started
+## Installation
 
-### Install
-
-```
+```shell
 npm install ndarray-methods
 ```
 
-### Usage
-
-```js
-import NDArray from "ndarray-methods";
-
-NDArray.buildShape([8], 0);
-// [0, 0, 0, 0, 0, 0, 0, 0]
-
-NDArray.buildShape([4, 3], (x, y) => x + y);
-// [[0, 1, 2], [1, 2, 3], [2, 3, 4], [3, 4, 5]]
-
-NDArray.shape($_);
-// [4, 3]
-
-NDArray.nestedSplit(
-  [/\r?\n|\r/, ","],
-  `#,Item,Price
-A1024,foo,120
-A1025,bar,240
-A1026,baz,480`
-);
-/*
-[
-  ["#", "Item", "Price"],
-  ["A1024", "foo", "120"],
-  ["A1025", "bar", "240"],
-  ["A1026", "baz", "480"]
-]
-*/
-
-NDArray.nestedJoin(["\n", ","], $_);
-/*
-`#,Item,Price
-A1024,foo,120
-A1025,bar,240
-A1026,baz,480`
-*/
-```
-
-## Trivial
+## Notes
 
 This library is originally intended to extend the built-in `Array.prototype`, so many methods are prefixed with the word `nested`.
 
@@ -74,7 +33,7 @@ Object.entries(NDArray).forEach(([name, method]) => {
 });
 ```
 
-In the documentation, all the examples are written in the "polyfilled" style.
+In the documentation, **all the examples are written in the "polyfilled" style.**
 
 A new ECMAScript Proposal with these methods will be made soon.
 
