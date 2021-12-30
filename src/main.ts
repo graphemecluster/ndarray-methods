@@ -5,7 +5,7 @@ function isCallable(item: unknown): item is Function {
 }
 function isArrayLike(item: unknown): item is unknown[] {
   if (Array.isArray(item)) return true;
-  if (!item || typeof item !== "object" || Object.prototype.hasOwnProperty.call(item, "length")) return false;
+  if (!item || typeof item !== "object" || !Object.prototype.hasOwnProperty.call(item, "length")) return false;
   const object = item as ArrayLike<unknown>;
   if (typeof object.length !== "number") return false;
   if (!object.length) return true;

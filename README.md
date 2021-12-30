@@ -12,6 +12,14 @@ Zero dependencies. Written in TypeScript.
 npm install ndarray-methods
 ```
 
+### Via CDN
+
+(_Only for experimental purpose, don't use it in production_)
+
+```html
+<script src="https://unpkg.com/ndarray-methods@1.0.3/dist/index.js" defer></script>
+```
+
 ## Notes
 
 This library is intended to extend the built-in `Array.prototype` (because it will be the demonstration of the coming ECMAScript Proposal), so many methods are prefixed with the word `nested`.
