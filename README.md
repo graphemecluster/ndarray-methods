@@ -74,16 +74,16 @@ Object.entries(NDArray).forEach(([name, method]) => {
 });
 ```
 
+In the documentation, all the examples are written in the "polyfilled" style.
+
 A new ECMAScript Proposal with these methods will be made soon.
 
 The documentation is written based on the declaration files, so as to make the wording consistent with the specification.
 
 <!-- prettier-ignore-start -->
-# API
+# Documentation
 
-## Table of contents
-
-### Functions
+## Table of Contents
 
 - [buildShape](#buildshape)
 - [shape, shapeAtOrigin](#shape-shapeatorigin)
@@ -100,13 +100,17 @@ The documentation is written based on the declaration files, so as to make the w
 - [nestedSome, nestedSomeFromLast](#nestedsome-nestedsomefromlast)
 - [nestedEvery, nestedEveryFromLast](#nestedevery-nestedeveryfromlast)
 
-## Functions
+## Methods
 
 ### buildShape
 
 ▸ **buildShape**<`T`\>(`array`, `mapfn`, `thisArg?`): `NDArray`<`T`\>
 
 Builds a nested array with a specific shape and fills the array with the result of a defined map function.
+
+```js
+[2, 3].buildShape((x, y) => x * 3 + y); // [[0, 1, 2], [3, 4, 5]]
+```
 
 #### Parameters
 
@@ -122,9 +126,15 @@ Builds a nested array with a specific shape and fills the array with the result 
 
 The array built with the specific shape.
 
+___
+
 ▸ **buildShape**<`T`\>(`array`, `value`): `NDArray`<`T`\>
 
 Builds a nested array with a specific shape and fills the array with a static value.
+
+```js
+[2, 3].buildShape(10); // [[10, 10, 10], [10, 10, 10]]
+```
 
 #### Parameters
 
@@ -147,9 +157,19 @@ ___
 
 Gets the length of each axis of a nested array. The `shape` method returns the shape at the deepest element.
 
+```js
+[[0, 1, 2], [3, 4, 5]].shape(); // [2, 3]
+[[0, 1], [2, [3, 4], 5]].shape(); // [2, 3, 2]
+```
+
 ▸ **shapeAtOrigin**(`array`): `number`[]
 
 Gets the length of each axis of a nested array. The `shapeAtOrigin` method only checks the first element recursively.
+
+```js
+[[0, 1, 2], [3, 4, 5]].shapeAtOrigin(); // [2, 3]
+[[0, 1], [2, [3, 4], 5]].shapeAtOrigin(); // [2, 2]
+```
 
 #### Parameters
 
@@ -170,6 +190,10 @@ ___
 ▸ **nestedMap**<`T`, `U`\>(`array`, `callbackfn`, `thisArg?`): `NDArray`<`U`\>
 
 Calls a defined callback function on each element in a nested array, and returns a deeply-cloned array that contains the results.
+
+```js
+[[0, 1, 2], [3, 4, 5]].nestedMap(n => n + 10); // [[10, 11, 12], [13, 14, 15]]
+```
 
 #### Parameters
 
@@ -193,6 +217,10 @@ ___
 
 Performs the specified action for each element in a nested array.
 
+```js
+[[0, 1, 2], [3, 4, 5]].nestedForEach(n => console.log(n)); // Prints 0 to 5
+```
+
 #### Parameters
 
 | Name | Type | Description |
@@ -206,6 +234,10 @@ Performs the specified action for each element in a nested array.
 ▸ **nestedSplit**(`separators`, `content`): `NDArray`<`string`\>
 
 Splits a string into substrings using the specified separators for each axis and return them as a nested array.
+
+```js
+[/,|;/, ""].nestedSplit("AB,CD;EF"); // [["A", "B"], ["C", "D"], ["E", "F"]]
+```
 
 #### Parameters
 
@@ -228,6 +260,10 @@ ___
 
 Concatenates all the elements in a nested array into a string, separated by the specified separator strings for each axis.
 
+```js
+[",", ""].nestedJoin([[0, 1, 2], [3, 4, 5]]); // "012,345"
+```
+
 #### Parameters
 
 | Name | Type | Description |
@@ -248,6 +284,13 @@ ___
 ▸ **nestedFill**<`T`\>(`array`, `value`, `startIndices?`, `endIndices?`): `NDArray`<`T`\>
 
 Changes all elements in a nested array from `startIndices` to `endIndices` to a static value in place and returns the array.
+
+```js
+[[0, 1, 2], [3, 4, 5]].nestedFill(10); // [[10, 10, 10], [10, 10, 10]]
+[[0, 1, 2], [3, 4, 5]].nestedFill(10, [0, 0], [2, 2]); // [[10, 10, 2], [10, 10, 5]]
+```
+
+If both `startIndices` and `endIndices` are omitted, all the elements will be replaced to the specified value.
 
 #### Parameters
 
@@ -271,6 +314,12 @@ ___
 ▸ **nestedFillMap**<`T`\>(`array`, `callbackfn`, `startIndices?`, `endIndices?`, `thisArg?`): `NDArray`<`T`\>
 
 Calls a defined callback function on all elements in a nested array from `startIndices` to `endIndices` in place and returns the array.
+
+```js
+[[0, 1, 2], [3, 4, 5]].nestedFillMap(n => n + 10); // [[10, 11, 12], [13, 14, 15]]
+[[0, 1, 2], [3, 4, 5]].nestedFillMap(n => n + 10, [0, 0], [2, 2]); // [[10, 11, 2], [13, 14, 5]]
+```
+
 If both `startIndices` and `endIndices` are omitted, the result is the same as the `nestedMap` method performed in place.
 
 #### Parameters
@@ -297,9 +346,19 @@ ___
 
 Determines whether a nested array includes a specified element, searching forwards.
 
+```js
+[[0, 1, 2], [3, 4, 5]].nestedIncludes(3); // true
+[[0, 1, 2], [3, 4, 5]].nestedIncludes(3, [0, 1]); // false
+```
+
 ▸ **nestedIncludesFromLast**<`T`\>(`array`, `searchElement`, `fromIndices?`): `boolean`
 
 Determines whether a nested array includes a specified element, searching backwards.
+
+```js
+[[0, 1, 2], [3, 4, 5]].nestedIncludesFromLast(2); // true
+[[0, 1, 2], [3, 4, 5]].nestedIncludesFromLast(2, [1, 1]); // false
+```
 
 #### Parameters
 
@@ -323,9 +382,19 @@ ___
 
 Returns the coordinates of the first occurrence of a specified value in an array, or `undefined` if it is not present.
 
+```js
+[[0, 1, 2], [3, 4, 5]].nestedIndexOf(3); // [1, 0]
+[[0, 1, 2], [3, 4, 5]].nestedIndexOf(3, [0, 1]); // undefined
+```
+
 ▸ **nestedLastIndexOf**<`T`\>(`array`, `searchElement`, `fromIndices?`): `number`[] \| `undefined`
 
 Returns the coordinates of the last occurrence of a specified value in an array, or `undefined` if it is not present.
+
+```js
+[[0, 1, 2], [3, 4, 5]].nestedLastIndexOf(2); // [0, 2]
+[[0, 1, 2], [3, 4, 5]].nestedLastIndexOf(2, [1, 1]); // undefined
+```
 
 #### Parameters
 
@@ -349,9 +418,19 @@ ___
 
 Returns the value of the first element in a nested array that satisfies the `predicate` function, or `undefined` if there is no such element.
 
+```js
+[[0, 1, 2], [3, 4, 5]].nestedFind(n => n % 6 == 3); // 3
+[[0, 1, 2], [3, 4, 5]].nestedFind(n => n % 6 == 3, [0, 1]); // undefined
+```
+
 ▸ **nestedFindLast**<`T`\>(`array`, `predicate`, `fromIndices?`, `thisArg?`): `T` \| `undefined`
 
 Returns the value of the last element in a nested array that satisfies the `predicate` function, or `undefined` if there is no such element.
+
+```js
+[[0, 1, 2], [3, 4, 5]].nestedFindLast(n => n % 6 == 2); // 2
+[[0, 1, 2], [3, 4, 5]].nestedFindLast(n => n % 6 == 2, [1, 1]); // undefined
+```
 
 #### Parameters
 
@@ -376,9 +455,19 @@ ___
 
 Returns the coordinates of the first element in a nested array that satisfies the `predicate` function, or `undefined` if there is no such element.
 
+```js
+[[0, 1, 2], [3, 4, 5]].nestedFindIndex(n => n % 6 == 3); // [1, 0]
+[[0, 1, 2], [3, 4, 5]].nestedFindIndex(n => n % 6 == 3, [0, 1]); // undefined
+```
+
 ▸ **nestedFindLastIndex**<`T`\>(`array`, `predicate`, `fromIndices?`, `thisArg?`): `number`[] \| `undefined`
 
 Returns the coordinates of the last element in a nested array that satisfies the `predicate` function, or `undefined` if there is no such element.
+
+```js
+[[0, 1, 2], [3, 4, 5]].nestedFindLastIndex(n => n % 6 == 2); // [0, 2]
+[[0, 1, 2], [3, 4, 5]].nestedFindLastIndex(n => n % 6 == 2, [1, 1]); // undefined
+```
 
 #### Parameters
 
@@ -403,9 +492,19 @@ ___
 
 Determines whether at least one element in a nested array satisfies the `predicate` function, searching forwards.
 
+```js
+[[0, 1, 2], [3, 4, 5]].nestedSome(n => n % 6 == 3); // true
+[[0, 1, 2], [3, 4, 5]].nestedSome(n => n % 6 == 3, [0, 1]); // false
+```
+
 ▸ **nestedSomeFromLast**<`T`\>(`array`, `predicate`, `fromIndices?`, `thisArg?`): `boolean`
 
 Determines whether at least one element in a nested array satisfies the `predicate` function, searching backwards.
+
+```js
+[[0, 1, 2], [3, 4, 5]].nestedSomeFromLast(n => n % 6 == 2); // true
+[[0, 1, 2], [3, 4, 5]].nestedSomeFromLast(n => n % 6 == 2, [1, 1]); // false
+```
 
 #### Parameters
 
@@ -430,9 +529,19 @@ ___
 
 Determines whether all elements in a nested array satisfies the `predicate` function, searching forwards.
 
+```js
+[[0, 1, 2], [3, 4, 5]].nestedEvery(n => n % 6 != 3); // false
+[[0, 1, 2], [3, 4, 5]].nestedEvery(n => n % 6 != 3, [0, 1]); // true
+```
+
 ▸ **nestedEveryFromLast**<`T`\>(`array`, `predicate`, `fromIndices?`, `thisArg?`): `boolean`
 
 Determines whether all elements in a nested array satisfies the `predicate` function, searching backwards.
+
+```js
+[[0, 1, 2], [3, 4, 5]].nestedEveryFromLast(n => n % 6 != 2); // false
+[[0, 1, 2], [3, 4, 5]].nestedEveryFromLast(n => n % 6 != 2, [1, 1]); // true
+```
 
 #### Parameters
 
