@@ -14,38 +14,102 @@ npm install ndarray-methods
 
 ### Via CDN
 
-(_Only for experimental purpose, don't use it in production_)
+#### Library Style
 
 ```html
-<script src="https://unpkg.com/ndarray-methods@1.0.3/dist/index.js" defer></script>
+<script src="https://unpkg.com/ndarray-methods@1.1.0/dist/index.js" defer></script>
+```
+
+#### Polyfill Style
+
+```html
+<script src="https://unpkg.com/ndarray-methods@1.1.0/dist/polyfill.js" defer></script>
+```
+
+You don't need to include both of the above, just choose your preferred style.
+
+### Using NDArray
+
+#### Library Style
+
+<!-- prettier-ignore -->
+```js
+import NDArray from "ndarray-methods";
+
+function levenshteinDistance(s, t) {
+  return NDArray.nestedFillMap(
+    NDArray.buildShape(
+      [s.length + 1, t.length + 1],
+      (i, j) => +!(i && j) && (i || j)
+    ),
+    (_, [i, j], d) => Math.min(
+      d[i - 1][j] + 1,
+      d[i][j - 1] + 1,
+      d[i - 1][j - 1] + (s[i - 1] != t[j - 1])
+    ),
+    [1, 1]
+  )[s.length][t.length];
+}
+
+levenshteinDistance("kitten", "sitting"); // 3
+```
+
+#### Polyfill Style
+
+To use the library as a "polyfill" on `Array.prototype`:
+
+<!-- prettier-ignore -->
+```js
+import "ndarray-methods/polyfill";
+
+function levenshteinDistance(s, t) {
+  return [s.length + 1, t.length + 1]
+    .buildShape((i, j) => +!(i && j) && (i || j))
+    .nestedFillMap(
+      (_, [i, j], d) => Math.min(
+        d[i - 1][j] + 1,
+        d[i][j - 1] + 1,
+        d[i - 1][j - 1] + (s[i - 1] != t[j - 1])
+      ),
+      [1, 1]
+    )[s.length][t.length];
+}
+
+levenshteinDistance("kitten", "sitting"); // 3
+```
+
+## Type Inferring
+
+It is recommended that you use a `tuple()` utility function while handling with shape or coordinates (or TypeScript's `as const`, whatever you want) to infer the more accurate type especially when using TypeScript:
+
+<!-- prettier-ignore -->
+```js
+[3, 4, 5].buildShape(0); // Inferred type: NDArray<number>
+tuple(3, 4, 5).buildShape(0); // Inferred type: number[][][]
+```
+
+To define the `tuple()` function:
+
+<!-- prettier-ignore -->
+```ts
+function tuple<T extends unknown[]>(...args: T) { return args; }
+```
+
+Or if you're not using TypeScript:
+
+<!-- prettier-ignore -->
+```js
+/** @type { <T extends unknown[]>(...args: T) => T } */
+function tuple(...args) { return args; }
 ```
 
 ## Notes
 
-This library is intended to extend the built-in `Array.prototype` (because it will be the demonstration of the coming ECMAScript Proposal), so many methods are prefixed with the word `nested`.
+- This library is intended to extend the built-in `Array.prototype` (because it may become a library for demonstration for the planned ECMAScript Proposal), so many methods are prefixed with the word `nested`.
 
-Also, the first argument of each function must be an array, so that you can "polyfill" the methods with the following snippet:
+- The documentation is written based on the declaration files of the core library, so as to keep the wording consistent with the ECMAScript specification.
 
-(_Currently not recommended as global types have not yet been declared_)
-
-```js
-Object.entries(NDArray).forEach(([name, method]) => {
-  if (!Array.prototype[name])
-    Object.defineProperty(Array.prototype, name, {
-      value(...args) {
-        return method(this, ...args);
-      },
-    });
-});
-```
-
-If you don't polyfill the methods, you will have to use the library in the "traditional" way, unlike the documentation:
-
-```js
-NDArray.buildShape([2, 3], (x, y) => x * 3 + y); // [[0, 1, 2], [3, 4, 5]]
-```
-
-The documentation is written based on the declaration files, so as to keep the wording consistent with the ECMAScript specification.
+- The types in the documentation are wide; you should get narrower types when you are writing codes.
 
 <!-- prettier-ignore-start -->
 # Documentation
@@ -236,7 +300,7 @@ Concatenates all the elements in a nested array into a string, separated by the 
 | Name | Type | Description |
 | :------ | :------ | :------ |
 | `separators` | `string`[] | A string used to separate one element of the array from the next in the resulting string. If a certain separator is `undefined`, a comma (`,`) is used instead for that axis. |
-| `content` | `NDArray`<`string`\> | The array to join. |
+| `content` | `NDArray`<`unknown`\> | The array to join. |
 
 #### Returns
 

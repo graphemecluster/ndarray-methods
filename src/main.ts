@@ -1,24 +1,40 @@
-type NDArray<T> = (T | NDArray<T>)[];
+import { NDArray, MDArray, BuildIndices, Indices, Shape, Map, ElementType, Parent } from ".";
+
+function call<T, A extends unknown[], R>(method: (this: T, ...args: A) => R): (thisArg: T, ...args: A) => R {
+  return (...args) => method.call(...args);
+}
+const hasOwnProperty: (object: Object, property: PropertyKey) => boolean = call(Object.prototype.hasOwnProperty);
+const ArrayPrototype = Array.prototype;
+const forEach: <T>(array: T[], callbackfn: (value: T, index: number, array: T[]) => void, thisArg?: any) => void = call(
+  ArrayPrototype.forEach
+);
+const map: <T, U>(array: T[], callbackfn: (value: T, index: number, array: T[]) => U, thisArg?: any) => U[] = call(
+  ArrayPrototype.map
+);
+const ArrayPrototypeReduce: <T, U>(
+  this: T[],
+  callbackfn: (previousValue: U, currentValue: T, currentIndex: number, array: T[]) => U,
+  initialValue?: U
+) => U = ArrayPrototype.reduce;
+const reduce: <T, U>(
+  array: T[],
+  callbackfn: (previousValue: U, currentValue: T, currentIndex: number, array: T[]) => U,
+  initialValue?: U
+) => U = call(ArrayPrototypeReduce);
 
 function isCallable(item: unknown): item is Function {
   return typeof item === "function";
 }
+function hasLengthProperty(item: Object): item is ArrayLike<unknown> {
+  return hasOwnProperty(item, "length");
+}
 function isArrayLike(item: unknown): item is unknown[] {
   if (Array.isArray(item)) return true;
-  if (!item || typeof item !== "object" || !Object.prototype.hasOwnProperty.call(item, "length")) return false;
-  const object = item as ArrayLike<unknown>;
-  if (typeof object.length !== "number") return false;
-  if (!object.length) return true;
-  return object.length > 0 && Object.prototype.hasOwnProperty.call(object, object.length - 1);
+  if (!item || typeof item !== "object" || !hasLengthProperty(item) || typeof item.length !== "number") return false;
+  return !item.length || (item.length > 0 && hasOwnProperty(item, item.length - 1));
 }
 function assertNonEmpty(array: unknown[]) {
-  if (!array.length) throw new RangeError("the length of the array must not be zero");
-}
-function forEach<T>(array: T[], callbackfn: (value: T, index: number, array: T[]) => void, thisArg?: any) {
-  Array.prototype.forEach.call(array, callbackfn, thisArg);
-}
-function map<T, U>(array: T[], callbackfn: (value: T, index: number, array: T[]) => U, thisArg?: any) {
-  return Array.prototype.map.call(array, callbackfn, thisArg) as U[];
+  if (!array.length) throw new RangeError("The length of the array must not be zero");
 }
 
 function toValidIndex(index: number | undefined, array: unknown[]) {
@@ -46,11 +62,11 @@ function toValidEndIndex(index: number | undefined, array: unknown[]) {
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns The array built with the specific shape.
  */
-export function buildShape<T, This = undefined>(
-  array: number[],
-  mapfn: (this: This, ...indices: number[]) => T,
+export function buildShape<A extends readonly number[], T, This = undefined>(
+  array: A,
+  mapfn: (this: This, ...indices: BuildIndices<A>) => T,
   thisArg?: This
-): NDArray<T>;
+): MDArray<T, A>;
 
 /**
  * Builds a nested array with a specific shape and fills the array with a static value.
@@ -61,18 +77,24 @@ export function buildShape<T, This = undefined>(
  * @param value The value to fill the array with.
  * @returns The array built with the specific shape.
  */
-export function buildShape<T>(array: number[], value: T): NDArray<T>;
+export function buildShape<A extends readonly number[], T>(array: A, value: T): MDArray<T, A>;
 
 export function buildShape<T>(array: number[], valueOrMapfn: T | ((...indices: number[]) => T), thisArg?: any) {
   assertNonEmpty(array);
   return isCallable(valueOrMapfn)
     ? (function recursive([length, ...rest]: number[], mapfn: (...indices: number[]) => T): NDArray<T> {
-        return rest.length
-          ? Array.from({ length }, (_, index) => recursive(rest, (...indices: number[]) => mapfn(index, ...indices)))
-          : Array.from({ length }, (_, index) => mapfn.call(thisArg, index));
+        return Array.from<unknown, T | NDArray<T>>(
+          { length },
+          rest.length
+            ? (_, index) => recursive(rest, (...indices: number[]) => mapfn(index, ...indices))
+            : (_, index) => mapfn.call(thisArg, index)
+        );
       })(array, valueOrMapfn)
     : (function recursive([length, ...rest]: number[], value: T): NDArray<T> {
-        return rest.length ? Array.from({ length }, () => recursive(rest, value)) : Array.from({ length }, () => value);
+        return Array.from<unknown, T | NDArray<T>>(
+          { length },
+          rest.length ? () => recursive(rest, value) : () => value
+        );
       })(array, valueOrMapfn);
 }
 
@@ -86,16 +108,21 @@ export function buildShape<T>(array: number[], valueOrMapfn: T | ((...indices: n
  * @param array The original array.
  * @returns A number array containing the lengths of each axis of the array.
  */
+export function shape<A extends readonly unknown[]>(array: A): Shape<A>;
+
 export function shape(array: NDArray<unknown>) {
   return (function recursive(parent: NDArray<unknown>, shape: number[]): number[] {
-    let newShape = shape;
-    forEach(parent, value => {
-      if (isArrayLike(value)) {
-        const result = recursive(value, shape.concat(value.length));
-        if (result.length > newShape.length || result[shape.length] > newShape[shape.length]) newShape = result;
-      }
-    });
-    return newShape;
+    return reduce(
+      parent,
+      (newShape, value) => {
+        if (isArrayLike(value)) {
+          const result = recursive(value, shape.concat(value.length));
+          if (result.length > newShape.length || result[shape.length] > newShape[shape.length]) return result;
+        }
+        return newShape;
+      },
+      shape
+    );
   })(array, [array.length]);
 }
 
@@ -109,9 +136,10 @@ export function shape(array: NDArray<unknown>) {
  * @param array The original array.
  * @returns A number array containing the lengths of each axis of the array.
  */
+export function shapeAtOrigin<A extends readonly unknown[]>(array: A): Shape<A>;
+
 export function shapeAtOrigin(array: NDArray<unknown>) {
-  return (function recursive(parent: NDArray<unknown>, shape: number[]): number[] {
-    const first = parent[0];
+  return (function recursive([first]: NDArray<unknown>, shape: number[]): number[] {
     return isArrayLike(first) ? recursive(first, shape.concat(first.length)) : shape;
   })(array, [array.length]);
 }
@@ -128,15 +156,15 @@ export function shapeAtOrigin(array: NDArray<unknown>) {
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns The mapped array.
  */
-export function nestedMap<T, U, This = undefined>(
-  array: NDArray<T>,
-  callbackfn: (this: This, value: T, index: number[], array: NDArray<T>, parent: NDArray<T>) => U,
+export function nestedMap<A extends readonly unknown[], U, This = undefined>(
+  array: A,
+  callbackfn: (this: This, value: ElementType<A>, indices: Indices<A>, array: A, parent: Parent<A>) => U,
   thisArg?: This
-): NDArray<U>;
+): Map<A, U>;
 
 export function nestedMap<T, U>(
   array: NDArray<T>,
-  callbackfn: (value: T, index: number[], array: NDArray<T>, parent: NDArray<T>) => U,
+  callbackfn: (value: T, indices: number[], array: NDArray<T>, parent: NDArray<T>) => U,
   thisArg?: any
 ) {
   return (function recursive(parent: NDArray<T>, indices: number[]): NDArray<U> {
@@ -159,15 +187,15 @@ export function nestedMap<T, U>(
  * @param thisArg An object to which the `this` keyword can refer in the `callbackfn` function.
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  */
-export function nestedForEach<T, U, This = undefined>(
-  array: NDArray<T>,
-  callbackfn: (this: This, value: T, index: number[], array: NDArray<T>, parent: NDArray<T>) => U,
+export function nestedForEach<A extends readonly unknown[], U, This = undefined>(
+  array: A,
+  callbackfn: (this: This, value: ElementType<A>, indices: Indices<A>, array: A, parent: Parent<A>) => U,
   thisArg?: This
 ): void;
 
 export function nestedForEach<T>(
   array: NDArray<T>,
-  callbackfn: (value: T, index: number[], array: NDArray<T>, parent: NDArray<T>) => void,
+  callbackfn: (value: T, indices: number[], array: NDArray<T>, parent: NDArray<T>) => void,
   thisArg?: any
 ) {
   (function recursive(parent: NDArray<T>, indices: number[]) {
@@ -188,6 +216,8 @@ export function nestedForEach<T>(
  * @param content The string to split.
  * @returns The splitted string as a nested array.
  */
+export function nestedSplit<A extends readonly (string | RegExp)[]>(separators: A, content: string): MDArray<string, A>;
+
 export function nestedSplit(separators: (string | RegExp)[], content: string) {
   assertNonEmpty(separators);
   return (function recursive([first, ...rest]: (string | RegExp)[], content: string): NDArray<string> {
@@ -205,6 +235,8 @@ export function nestedSplit(separators: (string | RegExp)[], content: string) {
  * @param content The array to join.
  * @returns A string with all the elements concatenated.
  */
+export function nestedJoin<A extends readonly string[]>(separators: A, content: MDArray<unknown, A>): string;
+
 export function nestedJoin(separators: string[], content: NDArray<unknown>) {
   return (function recursive(parent: NDArray<unknown>, axis: number): string {
     return map(parent, value => (isArrayLike(value) ? recursive(value, axis + 1) : value)).join(separators[axis]);
@@ -226,6 +258,13 @@ export function nestedJoin(separators: string[], content: NDArray<unknown>) {
  * If a certain end index is negative, the length of that axis of the array will be added to it.
  * @returns The modified array, which the instance is the same as the original array.
  */
+export function nestedFill<A extends unknown[]>(
+  array: A,
+  value: ElementType<A>,
+  startIndices?: Indices<A>,
+  endIndices?: Indices<A>
+): A;
+
 export function nestedFill<T>(array: NDArray<T>, value: T, startIndices: number[] = [], endIndices: number[] = []) {
   (function recursive(parent: NDArray<T>, axis: number) {
     for (
@@ -259,17 +298,17 @@ export function nestedFill<T>(array: NDArray<T>, value: T, startIndices: number[
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns The modified array, which the instance is the same as the original array.
  */
-export function nestedFillMap<T, This = undefined>(
-  array: NDArray<T>,
-  callbackfn: (this: This, value: T, index: number[], array: NDArray<T>, parent: NDArray<T>) => T,
+export function nestedFillMap<A extends unknown[], This = undefined>(
+  array: A,
+  callbackfn: (this: This, value: ElementType<A>, indices: Indices<A>, array: A, parent: Parent<A>) => ElementType<A>,
   startIndices?: number[],
   endIndices?: number[],
   thisArg?: This
-): NDArray<T>;
+): A;
 
 export function nestedFillMap<T>(
   array: NDArray<T>,
-  callbackfn: (value: T, index: number[], array: NDArray<T>, parent: NDArray<T>) => T,
+  callbackfn: (value: T, indices: number[], array: NDArray<T>, parent: NDArray<T>) => T,
   startIndices: number[] = [],
   endIndices: number[] = [],
   thisArg?: any
@@ -302,6 +341,12 @@ export function nestedFillMap<T>(
  * If a certain index is negative, the length of that axis of the array will be added to it.
  * @returns `true` if the element is found in the array, or `false` otherwise.
  */
+export function nestedIncludes<A extends readonly unknown[]>(
+  array: A,
+  searchElement: ElementType<A>,
+  fromIndices?: Indices<A>
+): boolean;
+
 export function nestedIncludes<T>(array: NDArray<T>, searchElement: T, fromIndices: number[] = []) {
   return (function recursive(parent: NDArray<T>, axis: number): boolean {
     for (let index = toValidIndex(fromIndices[axis], parent); index < parent.length; index++) {
@@ -327,6 +372,12 @@ export function nestedIncludes<T>(array: NDArray<T>, searchElement: T, fromIndic
  * If a certain index is negative, the length of that axis of the array will be added to it.
  * @returns `true` if the element is found in the array, or `false` otherwise.
  */
+export function nestedIncludesFromLast<A extends readonly unknown[]>(
+  array: A,
+  searchElement: ElementType<A>,
+  fromIndices?: Indices<A>
+): boolean;
+
 export function nestedIncludesFromLast<T>(array: NDArray<T>, searchElement: T, fromIndices: number[] = []) {
   return (function recursive(parent: NDArray<T>, axis: number): boolean {
     for (let index = toValidLastIndex(fromIndices[axis], parent); index >= 0; index--) {
@@ -352,6 +403,12 @@ export function nestedIncludesFromLast<T>(array: NDArray<T>, searchElement: T, f
  * If a certain index is negative, the length of that axis of the array will be added to it.
  * @returns A number array containing the coordinates of the element, or `undefined` if it is not present.
  */
+export function nestedIndexOf<A extends readonly unknown[]>(
+  array: A,
+  searchElement: ElementType<A>,
+  fromIndices?: Indices<A>
+): Indices<A> | undefined;
+
 export function nestedIndexOf<T>(array: NDArray<T>, searchElement: T, fromIndices: number[] = []) {
   return (function recursive(parent: NDArray<T>, indices: number[]): [false] | [true, number[]] {
     for (let index = toValidIndex(fromIndices[indices.length], parent); index < parent.length; index++) {
@@ -379,6 +436,12 @@ export function nestedIndexOf<T>(array: NDArray<T>, searchElement: T, fromIndice
  * If a certain index is negative, the length of that axis of the array will be added to it.
  * @returns A number array containing the coordinates of the element, or `undefined` if it is not present.
  */
+export function nestedLastIndexOf<A extends readonly unknown[]>(
+  array: A,
+  searchElement: ElementType<A>,
+  fromIndices?: Indices<A>
+): Indices<A> | undefined;
+
 export function nestedLastIndexOf<T>(array: NDArray<T>, searchElement: T, fromIndices: number[] = []) {
   return (function recursive(parent: NDArray<T>, indices: number[]): [false] | [true, number[]] {
     for (let index = toValidLastIndex(fromIndices[indices.length], parent); index >= 0; index--) {
@@ -409,10 +472,10 @@ export function nestedLastIndexOf<T>(array: NDArray<T>, searchElement: T, fromIn
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns The value of the first element in the array that satisfies the `predicate` function, or `undefined` if there is no such element.
  */
-export function nestedFind<T, S extends T, This = undefined>(
-  array: NDArray<T>,
-  predicate: (this: This, value: T, index: number[], array: NDArray<T>, parent: NDArray<T>) => value is S,
-  fromIndices?: number[],
+export function nestedFind<A extends readonly unknown[], S extends ElementType<A>, This = undefined>(
+  array: A,
+  predicate: (this: This, value: ElementType<A>, indices: Indices<A>, array: A, parent: Parent<A>) => value is S,
+  fromIndices?: Indices<A>,
   thisArg?: This
 ): S | undefined;
 
@@ -432,16 +495,16 @@ export function nestedFind<T, S extends T, This = undefined>(
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns The value of the first element in the array that satisfies the `predicate` function, or `undefined` if there is no such element.
  */
-export function nestedFind<T, This = undefined>(
-  array: NDArray<T>,
-  predicate: (this: This, value: T, index: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
-  fromIndices?: number[],
+export function nestedFind<A extends readonly unknown[], This = undefined>(
+  array: A,
+  predicate: (this: This, value: ElementType<A>, indices: Indices<A>, array: A, parent: Parent<A>) => unknown,
+  fromIndices?: Indices<A>,
   thisArg?: This
-): T | undefined;
+): ElementType<A> | undefined;
 
 export function nestedFind<T>(
   array: NDArray<T>,
-  predicate: (value: T, index: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
+  predicate: (value: T, indices: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
   fromIndices: number[] = [],
   thisArg?: any
 ) {
@@ -473,10 +536,10 @@ export function nestedFind<T>(
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns The value of the last element in the array that satisfies the `predicate` function, or `undefined` if there is no such element.
  */
-export function nestedFindLast<T, S extends T, This = undefined>(
-  array: NDArray<T>,
-  predicate: (this: This, value: T, index: number[], array: NDArray<T>, parent: NDArray<T>) => value is S,
-  fromIndices?: number[],
+export function nestedFindLast<A extends readonly unknown[], S extends ElementType<A>, This = undefined>(
+  array: A,
+  predicate: (this: This, value: ElementType<A>, indices: Indices<A>, array: A, parent: Parent<A>) => value is S,
+  fromIndices?: Indices<A>,
   thisArg?: This
 ): S | undefined;
 
@@ -496,16 +559,16 @@ export function nestedFindLast<T, S extends T, This = undefined>(
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns The value of the last element in the array that satisfies the `predicate` function, or `undefined` if there is no such element.
  */
-export function nestedFindLast<T, This = undefined>(
-  array: NDArray<T>,
-  predicate: (this: This, value: T, index: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
-  fromIndices?: number[],
+export function nestedFindLast<A extends readonly unknown[], This = undefined>(
+  array: A,
+  predicate: (this: This, value: ElementType<A>, indices: Indices<A>, array: A, parent: Parent<A>) => unknown,
+  fromIndices?: Indices<A>,
   thisArg?: This
-): T | undefined;
+): ElementType<A> | undefined;
 
 export function nestedFindLast<T>(
   array: NDArray<T>,
-  predicate: (value: T, index: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
+  predicate: (value: T, indices: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
   fromIndices: number[] = [],
   thisArg?: any
 ) {
@@ -537,16 +600,16 @@ export function nestedFindLast<T>(
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns The coordinates of the first element in the array that satisfies the `predicate` function, or `undefined` if there is no such element.
  */
-export function nestedFindIndex<T, This = undefined>(
-  array: NDArray<T>,
-  predicate: (this: This, value: T, index: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
-  fromIndices?: number[],
+export function nestedFindIndex<A extends readonly unknown[], This = undefined>(
+  array: A,
+  predicate: (this: This, value: ElementType<A>, indices: Indices<A>, array: A, parent: Parent<A>) => unknown,
+  fromIndices?: Indices<A>,
   thisArg?: This
-): number[] | undefined;
+): Indices<A> | undefined;
 
 export function nestedFindIndex<T>(
   array: NDArray<T>,
-  predicate: (value: T, index: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
+  predicate: (value: T, indices: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
   fromIndices: number[] = [],
   thisArg?: any
 ) {
@@ -579,16 +642,16 @@ export function nestedFindIndex<T>(
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns The coordinates of the last element in the array that satisfies the `predicate` function, or `undefined` if there is no such element.
  */
-export function nestedFindLastIndex<T, This = undefined>(
-  array: NDArray<T>,
-  predicate: (this: This, value: T, index: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
-  fromIndices?: number[],
+export function nestedFindLastIndex<A extends readonly unknown[], This = undefined>(
+  array: A,
+  predicate: (this: This, value: ElementType<A>, indices: Indices<A>, array: A, parent: Parent<A>) => unknown,
+  fromIndices?: Indices<A>,
   thisArg?: This
-): number[] | undefined;
+): Indices<A> | undefined;
 
 export function nestedFindLastIndex<T>(
   array: NDArray<T>,
-  predicate: (value: T, index: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
+  predicate: (value: T, indices: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
   fromIndices: number[] = [],
   thisArg?: any
 ) {
@@ -621,16 +684,16 @@ export function nestedFindLastIndex<T>(
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns `true` if at least one element in the array satisfies the `predicate` function, or `false` otherwise.
  */
-export function nestedSome<T, This = undefined>(
-  array: NDArray<T>,
-  predicate: (this: This, value: T, index: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
-  fromIndices?: number[],
+export function nestedSome<A extends readonly unknown[], This = undefined>(
+  array: A,
+  predicate: (this: This, value: ElementType<A>, indices: Indices<A>, array: A, parent: Parent<A>) => unknown,
+  fromIndices?: Indices<A>,
   thisArg?: This
 ): boolean;
 
 export function nestedSome<T>(
   array: NDArray<T>,
-  predicate: (value: T, index: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
+  predicate: (value: T, indices: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
   fromIndices: number[] = [],
   thisArg?: any
 ) {
@@ -661,16 +724,16 @@ export function nestedSome<T>(
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns `true` if at least one element in the array satisfies the `predicate` function, or `false` otherwise.
  */
-export function nestedSomeFromLast<T, This = undefined>(
-  array: NDArray<T>,
-  predicate: (this: This, value: T, index: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
-  fromIndices?: number[],
+export function nestedSomeFromLast<A extends readonly unknown[], This = undefined>(
+  array: A,
+  predicate: (this: This, value: ElementType<A>, indices: Indices<A>, array: A, parent: Parent<A>) => unknown,
+  fromIndices?: Indices<A>,
   thisArg?: This
 ): boolean;
 
 export function nestedSomeFromLast<T>(
   array: NDArray<T>,
-  predicate: (value: T, index: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
+  predicate: (value: T, indices: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
   fromIndices: number[] = [],
   thisArg?: any
 ) {
@@ -701,12 +764,12 @@ export function nestedSomeFromLast<T>(
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns `true` if all elements in the array satisfies the `predicate` function, or `false` otherwise.
  */
-export function nestedEvery<T, S extends T, This = undefined>(
-  array: NDArray<T>,
-  predicate: (this: This, value: T, index: number[], array: NDArray<T>, parent: NDArray<T>) => value is S,
-  fromIndices?: number[],
+export function nestedEvery<A extends readonly unknown[], S extends ElementType<A>, This = undefined>(
+  array: A,
+  predicate: (this: This, value: ElementType<A>, indices: Indices<A>, array: A, parent: Parent<A>) => value is S,
+  fromIndices?: Indices<A>,
   thisArg?: This
-): array is NDArray<S>;
+): array is Map<A, S> extends A ? Map<A, S> : A;
 
 /**
  * Determines whether all elements in a nested array satisfies the `predicate` function, searching forwards.
@@ -724,16 +787,16 @@ export function nestedEvery<T, S extends T, This = undefined>(
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns `true` if all elements in the array satisfies the `predicate` function, or `false` otherwise.
  */
-export function nestedEvery<T, This = undefined>(
-  array: NDArray<T>,
-  predicate: (this: This, value: T, index: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
-  fromIndices?: number[],
+export function nestedEvery<A extends readonly unknown[], This = undefined>(
+  array: A,
+  predicate: (this: This, value: ElementType<A>, indices: Indices<A>, array: A, parent: Parent<A>) => unknown,
+  fromIndices?: Indices<A>,
   thisArg?: This
 ): boolean;
 
 export function nestedEvery<T>(
   array: NDArray<T>,
-  predicate: (value: T, index: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
+  predicate: (value: T, indices: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
   fromIndices: number[] = [],
   thisArg?: any
 ) {
@@ -764,12 +827,12 @@ export function nestedEvery<T>(
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns `true` if all elements in the array satisfies the `predicate` function, or `false` otherwise.
  */
-export function nestedEveryFromLast<T, S extends T, This = undefined>(
-  array: NDArray<T>,
-  predicate: (this: This, value: T, index: number[], array: NDArray<T>, parent: NDArray<T>) => value is S,
-  fromIndices?: number[],
+export function nestedEveryFromLast<A extends readonly unknown[], S extends ElementType<A>, This = undefined>(
+  array: A,
+  predicate: (this: This, value: ElementType<A>, indices: Indices<A>, array: A, parent: Parent<A>) => value is S,
+  fromIndices?: Indices<A>,
   thisArg?: This
-): array is NDArray<S>;
+): array is Map<A, S> extends A ? Map<A, S> : A;
 
 /**
  * Determines whether all elements in a nested array satisfies the `predicate` function, searching backwards.
@@ -787,16 +850,16 @@ export function nestedEveryFromLast<T, S extends T, This = undefined>(
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns `true` if all elements in the array satisfies the `predicate` function, or `false` otherwise.
  */
-export function nestedEveryFromLast<T, This = undefined>(
-  array: NDArray<T>,
-  predicate: (this: This, value: T, index: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
-  fromIndices?: number[],
+export function nestedEveryFromLast<A extends readonly unknown[], This = undefined>(
+  array: A,
+  predicate: (this: This, value: ElementType<A>, indices: Indices<A>, array: A, parent: Parent<A>) => unknown,
+  fromIndices?: Indices<A>,
   thisArg?: This
 ): boolean;
 
 export function nestedEveryFromLast<T>(
   array: NDArray<T>,
-  predicate: (value: T, index: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
+  predicate: (value: T, indices: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
   fromIndices: number[] = [],
   thisArg?: any
 ) {

@@ -1,17 +1,28 @@
 {
   "name": "ndarray-methods",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "Convenient methods for JavaScript built-in multi-dimensional arrays.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
+    "src",
     "dist"
   ],
+  "exports": {
+    ".": {
+      "default": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./polyfill": {
+      "default": "./dist/polyfill.js",
+      "types": "./dist/polyfill.d.ts"
+    }
+  },
   "scripts": {
     "test": "jest",
-    "build": "webpack",
+    "build": "tsc ./scripts/transform.ts && webpack",
     "doc": "typedoc",
-    "prepublish": "webpack"
+    "prepublish": "npm run build"
   },
   "repository": {
     "type": "git",

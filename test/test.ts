@@ -1,7 +1,11 @@
-import NDArray from "../src";
+import "../dist/polyfill";
+
+function tuple<T extends readonly unknown[]>(...args: T) {
+  return args;
+}
 
 test("buildShape, nestedMap and nestedForEach", () => {
-  const zeros = NDArray.buildShape([3, 4, 5], 0);
+  const zeros = tuple(3, 4, 5).buildShape(0);
   expect(zeros).toEqual([
     [
       [0, 0, 0, 0, 0],
@@ -42,16 +46,12 @@ test("buildShape, nestedMap and nestedForEach", () => {
       ["230", "231", "232", "233", "234"],
     ],
   ];
-  expect(NDArray.buildShape([3, 4, 5], (...coords) => coords.join(""))).toEqual(expected);
-  expect(NDArray.buildShape([1, 1, 1, 1, 1, 1, 1, 0], "never")).toEqual([[[[[[[[]]]]]]]]);
+  expect(tuple(3, 4, 5).buildShape((...coords) => coords.join(""))).toEqual(expected);
+  expect(tuple(1, 1, 1, 1, 1, 1, 1, 0).buildShape("never")).toEqual([[[[[[[[]]]]]]]]);
 
-  expect(NDArray.nestedMap(zeros, (_, coords) => coords.join(""))).toEqual(expected);
-  const values: string[][][] = [
-    [[], [], [], []],
-    [[], [], [], []],
-    [[], [], [], []],
-  ];
-  NDArray.nestedForEach(zeros, (_, coords) => (values[coords[0]][coords[1]][coords[2]] = coords.join("")));
+  expect(zeros.nestedMap((_, coords) => coords.join(""))).toEqual(expected);
+  const values = tuple(3, 4, 5).buildShape("");
+  zeros.nestedForEach((_, [x, y, z]) => (values[x][y][z] = "" + x + y + z));
   expect(values).toEqual(expected);
 });
 
@@ -61,10 +61,10 @@ test("shape and shapeAtOrigin", () => {
     ["foo", []],
     [[], [["foo", "bar", []], "baz"]],
   ];
-  expect(NDArray.shape(array)).toEqual([3, 2, 2, 3, 0]);
-  expect(NDArray.shapeAtOrigin(array)).toEqual([3, 4, 3, 0]);
-  expect(NDArray.shape([[[[[[[[]]]]]]]])).toEqual([1, 1, 1, 1, 1, 1, 1, 0]);
-  expect(NDArray.shapeAtOrigin([[[[[[[[]]]]]]]])).toEqual([1, 1, 1, 1, 1, 1, 1, 0]);
+  expect(array.shape()).toEqual([3, 2, 2, 3, 0]);
+  expect(array.shapeAtOrigin()).toEqual([3, 4, 3, 0]);
+  expect([[[[[[[[]]]]]]]].shape()).toEqual([1, 1, 1, 1, 1, 1, 1, 0]);
+  expect([[[[[[[[]]]]]]]].shapeAtOrigin()).toEqual([1, 1, 1, 1, 1, 1, 1, 0]);
 });
 
 test("nestedSplit and nestedJoin", () => {
@@ -81,7 +81,7 @@ test("nestedSplit and nestedJoin", () => {
     "694 857 132",
     "257 319 468",
   ].join("\n");
-  const board = NDArray.nestedSplit([/(?:\r?\n|\r){2}/, /\r?\n|\r/, " ", ""], string);
+  const board = tuple(/(?:\r?\n|\r){2}/, /\r?\n|\r/, " ", "").nestedSplit(string);
   // prettier-ignore
   expect(board).toEqual([
     [
@@ -100,12 +100,12 @@ test("nestedSplit and nestedJoin", () => {
       [["2", "5", "7"], ["3", "1", "9"], ["4", "6", "8"]],
     ],
   ]);
-  expect(NDArray.nestedJoin(["\n\n", "\n", " ", ""], board)).toBe(string);
+  expect(tuple("\n\n", "\n", " ", "").nestedJoin(board)).toBe(string);
 });
 
 test("nestedFill and nestedFillMap", () => {
-  const array = NDArray.buildShape([3, 4, 5], (...coords) => coords.join(""));
-  NDArray.nestedFill(array, "___", [0, 1, 2], [1, 3, 5]);
+  const array = tuple(3, 4, 5).buildShape((...coords) => coords.join(""));
+  array.nestedFill("___", [0, 1, 2], [1, 3, 5]);
   expect(array).toEqual([
     [
       ["000", "001", "002", "003", "004"],
@@ -126,7 +126,7 @@ test("nestedFill and nestedFillMap", () => {
       ["230", "231", "232", "233", "234"],
     ],
   ]);
-  NDArray.nestedFillMap(array, (_, coords) => coords.map(coord => String.fromCharCode(65 + coord)).join(""), [1, 2, 1]);
+  array.nestedFillMap((_, coords) => coords.map(coord => String.fromCharCode(65 + coord)).join(""), [1, 2, 1]);
   expect(array).toEqual([
     [
       ["000", "001", "002", "003", "004"],
@@ -150,121 +150,121 @@ test("nestedFill and nestedFillMap", () => {
 });
 
 test("nestedIncludes, nestedIncludesFromLast, nestedIndexOf and nestedLastIndexOf", () => {
-  const array = NDArray.buildShape([3, 4, 5], (...coords) => coords.join(""));
+  const array = tuple(3, 4, 5).buildShape((...coords) => coords.join(""));
 
-  expect(NDArray.nestedIncludes(array, "123")).toBe(true);
-  expect(NDArray.nestedIncludes(array, "456")).toBe(false);
-  expect(NDArray.nestedIncludesFromLast(array, "123")).toBe(true);
-  expect(NDArray.nestedIncludesFromLast(array, "456")).toBe(false);
-  expect(NDArray.nestedIncludes(array, "123", [0, 3, 2])).toBe(false);
-  expect(NDArray.nestedIncludesFromLast(array, "123", [0, 3, 2])).toBe(false);
-  expect(NDArray.nestedIncludes(array, "123", [2, 2, 3])).toBe(false);
-  expect(NDArray.nestedIncludesFromLast(array, "123", [2, 2, 3])).toBe(true);
+  expect(array.nestedIncludes("123")).toBe(true);
+  expect(array.nestedIncludes("456")).toBe(false);
+  expect(array.nestedIncludesFromLast("123")).toBe(true);
+  expect(array.nestedIncludesFromLast("456")).toBe(false);
+  expect(array.nestedIncludes("123", [0, 3, 2])).toBe(false);
+  expect(array.nestedIncludesFromLast("123", [0, 3, 2])).toBe(false);
+  expect(array.nestedIncludes("123", [2, 2, 3])).toBe(false);
+  expect(array.nestedIncludesFromLast("123", [2, 2, 3])).toBe(true);
 
-  expect(NDArray.nestedIndexOf(array, "123")).toEqual([1, 2, 3]);
-  expect(NDArray.nestedIndexOf(array, "456")).toBeUndefined();
-  expect(NDArray.nestedLastIndexOf(array, "123")).toEqual([1, 2, 3]);
-  expect(NDArray.nestedLastIndexOf(array, "456")).toBeUndefined();
-  expect(NDArray.nestedIndexOf(array, "123", [0, 3, 2])).toBeUndefined();
-  expect(NDArray.nestedLastIndexOf(array, "123", [0, 3, 2])).toBeUndefined();
-  expect(NDArray.nestedIndexOf(array, "123", [2, 2, 3])).toBeUndefined();
-  expect(NDArray.nestedLastIndexOf(array, "123", [2, 2, 3])).toEqual([1, 2, 3]);
+  expect(array.nestedIndexOf("123")).toEqual([1, 2, 3]);
+  expect(array.nestedIndexOf("456")).toBeUndefined();
+  expect(array.nestedLastIndexOf("123")).toEqual([1, 2, 3]);
+  expect(array.nestedLastIndexOf("456")).toBeUndefined();
+  expect(array.nestedIndexOf("123", [0, 3, 2])).toBeUndefined();
+  expect(array.nestedLastIndexOf("123", [0, 3, 2])).toBeUndefined();
+  expect(array.nestedIndexOf("123", [2, 2, 3])).toBeUndefined();
+  expect(array.nestedLastIndexOf("123", [2, 2, 3])).toEqual([1, 2, 3]);
 });
 
 test("nestedFind, nestedFindLast, nestedFindIndex and nestedFindLastIndex", () => {
-  const array = NDArray.buildShape([3, 4, 5], (...coords) => coords.join(""));
+  const array = tuple(3, 4, 5).buildShape((...coords) => coords.join(""));
   const sum = (coords: number[]) => coords.reduce((a, b) => a + b);
 
-  expect(NDArray.nestedFind(array, (_, coords) => sum(coords) >= 5)).toBe("014");
-  expect(NDArray.nestedFind(array, (_, coords) => sum(coords) >= 10)).toBeUndefined();
-  expect(NDArray.nestedFindLast(array, (_, coords) => sum(coords) <= 3)).toBe("210");
-  expect(NDArray.nestedFindLast(array, (_, coords) => sum(coords) < 0)).toBeUndefined();
-  expect(NDArray.nestedFind(array, (_, coords) => sum(coords) >= 5, [1, 2, 0])).toBe("122");
-  expect(NDArray.nestedFindLast(array, (_, coords) => sum(coords) <= 3, [1, 3, 3])).toBe("120");
-  expect(NDArray.nestedFind(array, (_, coords) => sum(coords) <= 3, [2, 1, 1])).toBeUndefined();
-  expect(NDArray.nestedFindLast(array, (_, coords) => sum(coords) >= 5, [0, 1, 3])).toBeUndefined();
+  expect(array.nestedFind((_, coords) => sum(coords) >= 5)).toBe("014");
+  expect(array.nestedFind((_, coords) => sum(coords) >= 10)).toBeUndefined();
+  expect(array.nestedFindLast((_, coords) => sum(coords) <= 3)).toBe("210");
+  expect(array.nestedFindLast((_, coords) => sum(coords) < 0)).toBeUndefined();
+  expect(array.nestedFind((_, coords) => sum(coords) >= 5, [1, 2, 0])).toBe("122");
+  expect(array.nestedFindLast((_, coords) => sum(coords) <= 3, [1, 3, 3])).toBe("120");
+  expect(array.nestedFind((_, coords) => sum(coords) <= 3, [2, 1, 1])).toBeUndefined();
+  expect(array.nestedFindLast((_, coords) => sum(coords) >= 5, [0, 1, 3])).toBeUndefined();
 
-  expect(NDArray.nestedFindIndex(array, (_, coords) => sum(coords) >= 5)).toEqual([0, 1, 4]);
-  expect(NDArray.nestedFindIndex(array, (_, coords) => sum(coords) >= 10)).toBeUndefined();
-  expect(NDArray.nestedFindLastIndex(array, (_, coords) => sum(coords) <= 3)).toEqual([2, 1, 0]);
-  expect(NDArray.nestedFindLastIndex(array, (_, coords) => sum(coords) < 0)).toBeUndefined();
-  expect(NDArray.nestedFindIndex(array, (_, coords) => sum(coords) >= 5, [1, 2, 0])).toEqual([1, 2, 2]);
-  expect(NDArray.nestedFindLastIndex(array, (_, coords) => sum(coords) <= 3, [1, 3, 3])).toEqual([1, 2, 0]);
-  expect(NDArray.nestedFindIndex(array, (_, coords) => sum(coords) <= 3, [2, 1, 1])).toBeUndefined();
-  expect(NDArray.nestedFindLastIndex(array, (_, coords) => sum(coords) >= 5, [0, 1, 3])).toBeUndefined();
+  expect(array.nestedFindIndex((_, coords) => sum(coords) >= 5)).toEqual([0, 1, 4]);
+  expect(array.nestedFindIndex((_, coords) => sum(coords) >= 10)).toBeUndefined();
+  expect(array.nestedFindLastIndex((_, coords) => sum(coords) <= 3)).toEqual([2, 1, 0]);
+  expect(array.nestedFindLastIndex((_, coords) => sum(coords) < 0)).toBeUndefined();
+  expect(array.nestedFindIndex((_, coords) => sum(coords) >= 5, [1, 2, 0])).toEqual([1, 2, 2]);
+  expect(array.nestedFindLastIndex((_, coords) => sum(coords) <= 3, [1, 3, 3])).toEqual([1, 2, 0]);
+  expect(array.nestedFindIndex((_, coords) => sum(coords) <= 3, [2, 1, 1])).toBeUndefined();
+  expect(array.nestedFindLastIndex((_, coords) => sum(coords) >= 5, [0, 1, 3])).toBeUndefined();
 });
 
 test("nestedSome, nestedSomeFromLast, nestedEvery and nestedEveryFromLast", () => {
-  const array = NDArray.buildShape([3, 4, 5], (...coords) => coords.join(""));
+  const array = tuple(3, 4, 5).buildShape((...coords) => coords.join(""));
   const sum = (coords: number[]) => coords.reduce((a, b) => a + b);
 
-  expect(NDArray.nestedSome(array, (_, coords) => sum(coords) >= 5)).toBe(true);
-  expect(NDArray.nestedSome(array, (_, coords) => sum(coords) >= 10)).toBe(false);
-  expect(NDArray.nestedSomeFromLast(array, (_, coords) => sum(coords) <= 3)).toBe(true);
-  expect(NDArray.nestedSomeFromLast(array, (_, coords) => sum(coords) < 0)).toBe(false);
-  expect(NDArray.nestedSome(array, (_, coords) => sum(coords) >= 5, [1, 2, 0])).toBe(true);
-  expect(NDArray.nestedSomeFromLast(array, (_, coords) => sum(coords) <= 3, [1, 3, 3])).toBe(true);
-  expect(NDArray.nestedSome(array, (_, coords) => sum(coords) <= 3, [2, 1, 1])).toBe(false);
-  expect(NDArray.nestedSomeFromLast(array, (_, coords) => sum(coords) >= 5, [0, 1, 3])).toBe(false);
+  expect(array.nestedSome((_, coords) => sum(coords) >= 5)).toBe(true);
+  expect(array.nestedSome((_, coords) => sum(coords) >= 10)).toBe(false);
+  expect(array.nestedSomeFromLast((_, coords) => sum(coords) <= 3)).toBe(true);
+  expect(array.nestedSomeFromLast((_, coords) => sum(coords) < 0)).toBe(false);
+  expect(array.nestedSome((_, coords) => sum(coords) >= 5, [1, 2, 0])).toBe(true);
+  expect(array.nestedSomeFromLast((_, coords) => sum(coords) <= 3, [1, 3, 3])).toBe(true);
+  expect(array.nestedSome((_, coords) => sum(coords) <= 3, [2, 1, 1])).toBe(false);
+  expect(array.nestedSomeFromLast((_, coords) => sum(coords) >= 5, [0, 1, 3])).toBe(false);
 
-  expect(NDArray.nestedEvery(array, (_, coords) => sum(coords) < 5)).toBe(false);
-  expect(NDArray.nestedEvery(array, (_, coords) => sum(coords) < 10)).toBe(true);
-  expect(NDArray.nestedEveryFromLast(array, (_, coords) => sum(coords) > 3)).toBe(false);
-  expect(NDArray.nestedEveryFromLast(array, (_, coords) => sum(coords) >= 0)).toBe(true);
-  expect(NDArray.nestedEvery(array, (_, coords) => sum(coords) < 5, [1, 2, 0])).toBe(false);
-  expect(NDArray.nestedEveryFromLast(array, (_, coords) => sum(coords) > 3, [1, 3, 3])).toBe(false);
-  expect(NDArray.nestedEvery(array, (_, coords) => sum(coords) > 3, [2, 1, 1])).toBe(true);
-  expect(NDArray.nestedEveryFromLast(array, (_, coords) => sum(coords) < 5, [0, 1, 3])).toBe(true);
+  expect(array.nestedEvery((_, coords) => sum(coords) < 5)).toBe(false);
+  expect(array.nestedEvery((_, coords) => sum(coords) < 10)).toBe(true);
+  expect(array.nestedEveryFromLast((_, coords) => sum(coords) > 3)).toBe(false);
+  expect(array.nestedEveryFromLast((_, coords) => sum(coords) >= 0)).toBe(true);
+  expect(array.nestedEvery((_, coords) => sum(coords) < 5, [1, 2, 0])).toBe(false);
+  expect(array.nestedEveryFromLast((_, coords) => sum(coords) > 3, [1, 3, 3])).toBe(false);
+  expect(array.nestedEvery((_, coords) => sum(coords) > 3, [2, 1, 1])).toBe(true);
+  expect(array.nestedEveryFromLast((_, coords) => sum(coords) < 5, [0, 1, 3])).toBe(true);
 });
 
 // prettier-ignore
 test("Examples in the documentation", () => {
   const array = [[0, 1, 2], [3, 4, 5]];
 
-  expect(NDArray.buildShape([2, 3], (x, y) => x * 3 + y)).toEqual(array);
-  expect(NDArray.buildShape([2, 3], 10)).toEqual([[10, 10, 10], [10, 10, 10]]);
+  expect(tuple(2, 3).buildShape((x, y) => x * 3 + y)).toEqual(array);
+  expect(tuple(2, 3).buildShape(10)).toEqual([[10, 10, 10], [10, 10, 10]]);
 
-  expect(NDArray.shape(array)).toEqual([2, 3]);
-  expect(NDArray.shape([[0, 1], [2, [3, 4], 5]])).toEqual([2, 3, 2]);
-  expect(NDArray.shapeAtOrigin(array)).toEqual([2, 3]);
-  expect(NDArray.shapeAtOrigin([[0, 1], [2, [3, 4], 5]])).toEqual([2, 2]);
+  expect(array.shape()).toEqual([2, 3]);
+  expect([[0, 1], [2, [3, 4], 5]].shape()).toEqual([2, 3, 2]);
+  expect(array.shapeAtOrigin()).toEqual([2, 3]);
+  expect([[0, 1], [2, [3, 4], 5]].shapeAtOrigin()).toEqual([2, 2]);
 
-  expect(NDArray.nestedMap(array, n => n + 10)).toEqual([[10, 11, 12], [13, 14, 15]]);
-  expect(NDArray.nestedSplit([/,|;/, ""], "AB,CD;EF")).toEqual([["A", "B"], ["C", "D"], ["E", "F"]]);
-  expect(NDArray.nestedJoin([",", ""], array)).toBe("012,345");
+  expect(array.nestedMap(n => n + 10)).toEqual([[10, 11, 12], [13, 14, 15]]);
+  expect(tuple(/,|;/, "").nestedSplit("AB,CD;EF")).toEqual([["A", "B"], ["C", "D"], ["E", "F"]]);
+  expect(tuple(",", "").nestedJoin(array)).toBe("012,345");
 
-  expect(NDArray.nestedFill([[0, 1, 2], [3, 4, 5]], 10)).toEqual([[10, 10, 10], [10, 10, 10]]);
-  expect(NDArray.nestedFill([[0, 1, 2], [3, 4, 5]], 10, [0, 0], [2, 2])).toEqual([[10, 10, 2], [10, 10, 5]]);
-  expect(NDArray.nestedFillMap([[0, 1, 2], [3, 4, 5]], n => n + 10)).toEqual([[10, 11, 12], [13, 14, 15]]);
-  expect(NDArray.nestedFillMap([[0, 1, 2], [3, 4, 5]], n => n + 10, [0, 0], [2, 2])).toEqual([[10, 11, 2], [13, 14, 5]]);
+  expect([[0, 1, 2], [3, 4, 5]].nestedFill(10)).toEqual([[10, 10, 10], [10, 10, 10]]);
+  expect([[0, 1, 2], [3, 4, 5]].nestedFill(10, [0, 0], [2, 2])).toEqual([[10, 10, 2], [10, 10, 5]]);
+  expect([[0, 1, 2], [3, 4, 5]].nestedFillMap(n => n + 10)).toEqual([[10, 11, 12], [13, 14, 15]]);
+  expect([[0, 1, 2], [3, 4, 5]].nestedFillMap(n => n + 10, [0, 0], [2, 2])).toEqual([[10, 11, 2], [13, 14, 5]]);
 
-  expect(NDArray.nestedIncludes(array, 3)).toBe(true);
-  expect(NDArray.nestedIncludes(array, 3, [0, 1])).toBe(false);
-  expect(NDArray.nestedIncludesFromLast(array, 2)).toBe(true);
-  expect(NDArray.nestedIncludesFromLast(array, 2, [1, 1])).toBe(false);
+  expect(array.nestedIncludes(3)).toBe(true);
+  expect(array.nestedIncludes(3, [0, 1])).toBe(false);
+  expect(array.nestedIncludesFromLast(2)).toBe(true);
+  expect(array.nestedIncludesFromLast(2, [1, 1])).toBe(false);
 
-  expect(NDArray.nestedIndexOf(array, 3)).toEqual([1, 0]);
-  expect(NDArray.nestedIndexOf(array, 3, [0, 1])).toBeUndefined();
-  expect(NDArray.nestedLastIndexOf(array, 2)).toEqual([0, 2]);
-  expect(NDArray.nestedLastIndexOf(array, 2, [1, 1])).toBeUndefined();
+  expect(array.nestedIndexOf(3)).toEqual([1, 0]);
+  expect(array.nestedIndexOf(3, [0, 1])).toBeUndefined();
+  expect(array.nestedLastIndexOf(2)).toEqual([0, 2]);
+  expect(array.nestedLastIndexOf(2, [1, 1])).toBeUndefined();
 
-  expect(NDArray.nestedFind(array, n => n % 6 == 3)).toBe(3);
-  expect(NDArray.nestedFind(array, n => n % 6 == 3, [0, 1])).toBeUndefined();
-  expect(NDArray.nestedFindLast(array, n => n % 6 == 2)).toBe(2);
-  expect(NDArray.nestedFindLast(array, n => n % 6 == 2, [1, 1])).toBeUndefined();
+  expect(array.nestedFind(n => n % 6 == 3)).toBe(3);
+  expect(array.nestedFind(n => n % 6 == 3, [0, 1])).toBeUndefined();
+  expect(array.nestedFindLast(n => n % 6 == 2)).toBe(2);
+  expect(array.nestedFindLast(n => n % 6 == 2, [1, 1])).toBeUndefined();
 
-  expect(NDArray.nestedFindIndex(array, n => n % 6 == 3)).toEqual([1, 0]);
-  expect(NDArray.nestedFindIndex(array, n => n % 6 == 3, [0, 1])).toBeUndefined();
-  expect(NDArray.nestedFindLastIndex(array, n => n % 6 == 2)).toEqual([0, 2]);
-  expect(NDArray.nestedFindLastIndex(array, n => n % 6 == 2, [1, 1])).toBeUndefined();
+  expect(array.nestedFindIndex(n => n % 6 == 3)).toEqual([1, 0]);
+  expect(array.nestedFindIndex(n => n % 6 == 3, [0, 1])).toBeUndefined();
+  expect(array.nestedFindLastIndex(n => n % 6 == 2)).toEqual([0, 2]);
+  expect(array.nestedFindLastIndex(n => n % 6 == 2, [1, 1])).toBeUndefined();
 
-  expect(NDArray.nestedSome(array, n => n % 6 == 3)).toBe(true);
-  expect(NDArray.nestedSome(array, n => n % 6 == 3, [0, 1])).toBe(false);
-  expect(NDArray.nestedSomeFromLast(array, n => n % 6 == 2)).toBe(true);
-  expect(NDArray.nestedSomeFromLast(array, n => n % 6 == 2, [1, 1])).toBe(false);
+  expect(array.nestedSome(n => n % 6 == 3)).toBe(true);
+  expect(array.nestedSome(n => n % 6 == 3, [0, 1])).toBe(false);
+  expect(array.nestedSomeFromLast(n => n % 6 == 2)).toBe(true);
+  expect(array.nestedSomeFromLast(n => n % 6 == 2, [1, 1])).toBe(false);
 
-  expect(NDArray.nestedEvery(array, n => n % 6 != 3)).toBe(false);
-  expect(NDArray.nestedEvery(array, n => n % 6 != 3, [0, 1])).toBe(true);
-  expect(NDArray.nestedEveryFromLast(array, n => n % 6 != 2)).toBe(false);
-  expect(NDArray.nestedEveryFromLast(array, n => n % 6 != 2, [1, 1])).toBe(true);
+  expect(array.nestedEvery(n => n % 6 != 3)).toBe(false);
+  expect(array.nestedEvery(n => n % 6 != 3, [0, 1])).toBe(true);
+  expect(array.nestedEveryFromLast(n => n % 6 != 2)).toBe(false);
+  expect(array.nestedEveryFromLast(n => n % 6 != 2, [1, 1])).toBe(true);
 });
