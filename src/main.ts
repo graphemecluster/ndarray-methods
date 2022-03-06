@@ -1,4 +1,4 @@
-import { NDArray, MDArray, BuildIndices, Indices, Shape, Map, ElementType, Parent } from ".";
+import { Infinity, NDArray, MDArray, BuildIndices, Indices, Shape, Map, ElementType, Parent, Cast, Narrow } from ".";
 
 function call<T, A extends unknown[], R>(method: (this: T, ...args: A) => R): (thisArg: T, ...args: A) => R {
   return (...args) => method.call(...args);
@@ -36,6 +36,10 @@ function isArrayLike(item: unknown): item is unknown[] {
 function assertNonEmpty(array: unknown[]) {
   if (!array.length) throw new RangeError("The length of the array must not be zero");
 }
+function assertPositive(depth: number) {
+  if (depth < 1) throw new RangeError("maxDepth argument must be at least 1");
+  return Math.floor(depth);
+}
 
 function toValidIndex(index: number | undefined, array: unknown[]) {
   if (typeof index === "undefined" || index === -Infinity) return 0;
@@ -63,9 +67,9 @@ function toValidEndIndex(index: number | undefined, array: unknown[]) {
  * @returns The array built with the specific shape.
  */
 export function buildShape<A extends readonly number[], T, This = undefined>(
-  array: A,
+  array: Narrow<A>,
   mapfn: (this: This, ...indices: BuildIndices<A>) => T,
-  thisArg?: This
+  thisArg?: Narrow<This>
 ): MDArray<T, A>;
 
 /**
@@ -77,7 +81,7 @@ export function buildShape<A extends readonly number[], T, This = undefined>(
  * @param value The value to fill the array with.
  * @returns The array built with the specific shape.
  */
-export function buildShape<A extends readonly number[], T>(array: A, value: T): MDArray<T, A>;
+export function buildShape<A extends readonly number[], T>(array: Narrow<A>, value: T): MDArray<T, A>;
 
 export function buildShape<T>(array: number[], valueOrMapfn: T | ((...indices: number[]) => T), thisArg?: any) {
   assertNonEmpty(array);
@@ -106,16 +110,21 @@ export function buildShape<T>(array: number[], valueOrMapfn: T | ((...indices: n
  * ```
  * For a non-variable length array, use the `shapeAtOrigin` method instead for a better performance.
  * @param array The original array.
+ * @param maxDepth The deepest axis the method will traverse. Defaults to `Infinity`.
  * @returns A number array containing the lengths of each axis of the array.
  */
-export function shape<A extends readonly unknown[]>(array: A): Shape<A>;
+export function shape<A extends readonly unknown[], M extends number = Infinity>(
+  array: A,
+  maxDepth?: Narrow<M>
+): Shape<A, M>;
 
-export function shape(array: NDArray<unknown>) {
+export function shape(array: NDArray<unknown>, maxDepth = Infinity) {
+  maxDepth = assertPositive(maxDepth);
   return (function recursive(parent: NDArray<unknown>, shape: number[]): number[] {
     return reduce(
       parent,
       (newShape, value) => {
-        if (isArrayLike(value)) {
+        if (isArrayLike(value) && shape.length < maxDepth) {
           const result = recursive(value, shape.concat(value.length));
           if (result.length > newShape.length || result[shape.length] > newShape[shape.length]) return result;
         }
@@ -134,13 +143,18 @@ export function shape(array: NDArray<unknown>) {
  * ```
  * For a variable length array, use the `shape` method instead to get the shape at the deepest element.
  * @param array The original array.
+ * @param maxDepth The deepest axis the method will traverse. Defaults to `Infinity`.
  * @returns A number array containing the lengths of each axis of the array.
  */
-export function shapeAtOrigin<A extends readonly unknown[]>(array: A): Shape<A>;
+export function shapeAtOrigin<A extends readonly unknown[], M extends number = Infinity>(
+  array: A,
+  maxDepth?: Narrow<M>
+): Shape<A, M>;
 
-export function shapeAtOrigin(array: NDArray<unknown>) {
+export function shapeAtOrigin(array: NDArray<unknown>, maxDepth = Infinity) {
+  maxDepth = assertPositive(maxDepth);
   return (function recursive([first]: NDArray<unknown>, shape: number[]): number[] {
-    return isArrayLike(first) ? recursive(first, shape.concat(first.length)) : shape;
+    return isArrayLike(first) && shape.length < maxDepth ? recursive(first, shape.concat(first.length)) : shape;
   })(array, [array.length]);
 }
 
@@ -152,27 +166,32 @@ export function shapeAtOrigin(array: NDArray<unknown>) {
  * @param array The original array.
  * @param callbackfn A function that accepts up to 4 arguments.
  * The `nestedMap` method calls the `callbackfn` function one time for each element in the array.
+ * @param maxDepth The deepest axis the method will traverse. Defaults to `Infinity`.
  * @param thisArg An object to which the `this` keyword can refer in the `callbackfn` function.
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns The mapped array.
  */
-export function nestedMap<A extends readonly unknown[], U, This = undefined>(
+export function nestedMap<A extends readonly unknown[], U, M extends number = Infinity, This = undefined>(
   array: A,
-  callbackfn: (this: This, value: ElementType<A>, indices: Indices<A>, array: A, parent: Parent<A>) => U,
-  thisArg?: This
-): Map<A, U>;
+  callbackfn: (this: This, value: ElementType<A, M>, indices: Indices<A, M>, array: A, parent: Parent<A, M>) => U,
+  maxDepth?: Narrow<M>,
+  thisArg?: Narrow<This>
+): Map<A, U, M>;
 
 export function nestedMap<T, U>(
   array: NDArray<T>,
-  callbackfn: (value: T, indices: number[], array: NDArray<T>, parent: NDArray<T>) => U,
+  callbackfn: (value: T | NDArray<T>, indices: number[], array: NDArray<T>, parent: NDArray<T>) => U,
+  maxDepth = Infinity,
   thisArg?: any
 ) {
+  maxDepth = assertPositive(maxDepth);
   return (function recursive(parent: NDArray<T>, indices: number[]): NDArray<U> {
-    return map(parent, (value, index) =>
-      isArrayLike(value)
-        ? recursive(value, indices.concat(index))
-        : callbackfn.call(thisArg, value, indices.concat(index), array, parent)
-    );
+    return map(parent, (value, index) => {
+      const newIndices = indices.concat(index);
+      return isArrayLike(value) && newIndices.length < maxDepth
+        ? recursive(value, newIndices)
+        : callbackfn.call(thisArg, value, newIndices, array, parent);
+    });
   })(array, []);
 }
 
@@ -184,25 +203,30 @@ export function nestedMap<T, U>(
  * @param array The original array.
  * @param callbackfn A function that accepts up to 4 arguments.
  * The `nestedForEach` method calls the `callbackfn` function one time for each element in the array.
+ * @param maxDepth The deepest axis the method will traverse. Defaults to `Infinity`.
  * @param thisArg An object to which the `this` keyword can refer in the `callbackfn` function.
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  */
-export function nestedForEach<A extends readonly unknown[], U, This = undefined>(
+export function nestedForEach<A extends readonly unknown[], U, M extends number = Infinity, This = undefined>(
   array: A,
-  callbackfn: (this: This, value: ElementType<A>, indices: Indices<A>, array: A, parent: Parent<A>) => U,
-  thisArg?: This
+  callbackfn: (this: This, value: ElementType<A, M>, indices: Indices<A, M>, array: A, parent: Parent<A, M>) => U,
+  maxDepth?: Narrow<M>,
+  thisArg?: Narrow<This>
 ): void;
 
 export function nestedForEach<T>(
   array: NDArray<T>,
-  callbackfn: (value: T, indices: number[], array: NDArray<T>, parent: NDArray<T>) => void,
+  callbackfn: (value: T | NDArray<T>, indices: number[], array: NDArray<T>, parent: NDArray<T>) => void,
+  maxDepth = Infinity,
   thisArg?: any
 ) {
+  maxDepth = assertPositive(maxDepth);
   (function recursive(parent: NDArray<T>, indices: number[]) {
     forEach(parent, (value, index) => {
-      isArrayLike(value)
-        ? recursive(value, indices.concat(index))
-        : callbackfn.call(thisArg, value, indices.concat(index), array, parent);
+      const newIndices = indices.concat(index);
+      isArrayLike(value) && newIndices.length < maxDepth
+        ? recursive(value, newIndices)
+        : callbackfn.call(thisArg, value, newIndices, array, parent);
     });
   })(array, []);
 }
@@ -216,7 +240,10 @@ export function nestedForEach<T>(
  * @param content The string to split.
  * @returns The splitted string as a nested array.
  */
-export function nestedSplit<A extends readonly (string | RegExp)[]>(separators: A, content: string): MDArray<string, A>;
+export function nestedSplit<A extends readonly (string | RegExp)[]>(
+  separators: Narrow<A>,
+  content: string
+): MDArray<string, A>;
 
 export function nestedSplit(separators: (string | RegExp)[], content: string) {
   assertNonEmpty(separators);
@@ -233,13 +260,21 @@ export function nestedSplit(separators: (string | RegExp)[], content: string) {
  * @param separators A string used to separate one element of the array from the next in the resulting string.
  * If a certain separator is `undefined`, a comma (`,`) is used instead for that axis.
  * @param content The array to join.
+ * @param maxDepth The deepest axis the method will traverse. Defaults to `Infinity`.
  * @returns A string with all the elements concatenated.
  */
-export function nestedJoin<A extends readonly string[]>(separators: A, content: MDArray<unknown, A>): string;
+export function nestedJoin<A extends readonly string[]>(
+  separators: Narrow<A>,
+  content: MDArray<unknown, A>,
+  maxDepth?: number
+): string;
 
-export function nestedJoin(separators: string[], content: NDArray<unknown>) {
+export function nestedJoin(separators: string[], content: NDArray<unknown>, maxDepth = Infinity) {
+  maxDepth = assertPositive(maxDepth);
   return (function recursive(parent: NDArray<unknown>, axis: number): string {
-    return map(parent, value => (isArrayLike(value) ? recursive(value, axis + 1) : value)).join(separators[axis]);
+    return map(parent, value => (isArrayLike(value) && axis + 1 < maxDepth ? recursive(value, axis + 1) : value)).join(
+      separators[axis]
+    );
   })(content, 0);
 }
 
@@ -256,16 +291,25 @@ export function nestedJoin(separators: string[], content: NDArray<unknown>) {
  * If a certain start index is negative, the length of that axis of the array will be added to it.
  * @param endIndices The coordinates to stop filling the array at (exclusive).
  * If a certain end index is negative, the length of that axis of the array will be added to it.
+ * @param maxDepth The deepest axis the method will traverse. Defaults to `Infinity`.
  * @returns The modified array, which the instance is the same as the original array.
  */
-export function nestedFill<A extends unknown[]>(
+export function nestedFill<A extends unknown[], M extends number = Infinity>(
   array: A,
-  value: ElementType<A>,
-  startIndices?: Indices<A>,
-  endIndices?: Indices<A>
+  value: ElementType<A, M>,
+  startIndices?: Indices<A, M>,
+  endIndices?: Indices<A, M>,
+  maxDepth?: Narrow<M>
 ): A;
 
-export function nestedFill<T>(array: NDArray<T>, value: T, startIndices: number[] = [], endIndices: number[] = []) {
+export function nestedFill<T>(
+  array: NDArray<T>,
+  value: T,
+  startIndices: number[] = [],
+  endIndices: number[] = [],
+  maxDepth = Infinity
+) {
+  maxDepth = assertPositive(maxDepth);
   (function recursive(parent: NDArray<T>, axis: number) {
     for (
       let index = toValidIndex(startIndices[axis], parent);
@@ -273,7 +317,7 @@ export function nestedFill<T>(array: NDArray<T>, value: T, startIndices: number[
       index++
     ) {
       const original = parent[index];
-      if (isArrayLike(original)) recursive(original, axis + 1);
+      if (isArrayLike(original) && axis + 1 < maxDepth) recursive(original, axis + 1);
       else parent[index] = value;
     }
   })(array, 0);
@@ -294,25 +338,35 @@ export function nestedFill<T>(array: NDArray<T>, value: T, startIndices: number[
  * If a certain start index is negative, the length of that axis of the array will be added to it.
  * @param endIndices The coordinates to stop filling the array at (exclusive).
  * If a certain end index is negative, the length of that axis of the array will be added to it.
+ * @param maxDepth The deepest axis the method will traverse. Defaults to `Infinity`.
  * @param thisArg An object to which the `this` keyword can refer in the `callbackfn` function.
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns The modified array, which the instance is the same as the original array.
  */
-export function nestedFillMap<A extends unknown[], This = undefined>(
+export function nestedFillMap<A extends unknown[], M extends number = Infinity, This = undefined>(
   array: A,
-  callbackfn: (this: This, value: ElementType<A>, indices: Indices<A>, array: A, parent: Parent<A>) => ElementType<A>,
-  startIndices?: number[],
-  endIndices?: number[],
-  thisArg?: This
+  callbackfn: (
+    this: This,
+    value: ElementType<A, M>,
+    indices: Indices<A, M>,
+    array: A,
+    parent: Parent<A, M>
+  ) => ElementType<A, M>,
+  startIndices?: Indices<A, M>,
+  endIndices?: Indices<A, M>,
+  maxDepth?: Narrow<M>,
+  thisArg?: Narrow<This>
 ): A;
 
 export function nestedFillMap<T>(
   array: NDArray<T>,
-  callbackfn: (value: T, indices: number[], array: NDArray<T>, parent: NDArray<T>) => T,
+  callbackfn: (value: T | NDArray<T>, indices: number[], array: NDArray<T>, parent: NDArray<T>) => T,
   startIndices: number[] = [],
   endIndices: number[] = [],
+  maxDepth = Infinity,
   thisArg?: any
 ) {
+  maxDepth = assertPositive(maxDepth);
   (function recursive(parent: NDArray<T>, indices: number[]) {
     for (
       let index = toValidIndex(startIndices[indices.length], parent);
@@ -321,7 +375,7 @@ export function nestedFillMap<T>(
     ) {
       const value = parent[index];
       const newIndices = indices.concat(index);
-      if (isArrayLike(value)) recursive(value, newIndices);
+      if (isArrayLike(value) && newIndices.length < maxDepth) recursive(value, newIndices);
       else parent[index] = callbackfn.call(thisArg, value, newIndices, array, parent);
     }
   })(array, []);
@@ -339,19 +393,27 @@ export function nestedFillMap<T>(
  * @param searchElement The element to search for.
  * @param fromIndices The coordinates at which to begin searching for (inclusive).
  * If a certain index is negative, the length of that axis of the array will be added to it.
+ * @param maxDepth The deepest axis the method will traverse. Defaults to `Infinity`.
  * @returns `true` if the element is found in the array, or `false` otherwise.
  */
-export function nestedIncludes<A extends readonly unknown[]>(
+export function nestedIncludes<A extends readonly unknown[], M extends number = Infinity>(
   array: A,
-  searchElement: ElementType<A>,
-  fromIndices?: Indices<A>
+  searchElement: ElementType<A, M>,
+  fromIndices?: Indices<A, M>,
+  maxDepth?: Narrow<M>
 ): boolean;
 
-export function nestedIncludes<T>(array: NDArray<T>, searchElement: T, fromIndices: number[] = []) {
+export function nestedIncludes<T>(
+  array: NDArray<T>,
+  searchElement: T,
+  fromIndices: number[] = [],
+  maxDepth = Infinity
+) {
+  maxDepth = assertPositive(maxDepth);
   return (function recursive(parent: NDArray<T>, axis: number): boolean {
     for (let index = toValidIndex(fromIndices[axis], parent); index < parent.length; index++) {
       const value = parent[index];
-      if (isArrayLike(value)) {
+      if (isArrayLike(value) && axis + 1 < maxDepth) {
         if (recursive(value, axis + 1)) return true;
       } else if (value === searchElement) return true;
     }
@@ -370,19 +432,27 @@ export function nestedIncludes<T>(array: NDArray<T>, searchElement: T, fromIndic
  * @param searchElement The element to search for.
  * @param fromIndices The coordinates at which to begin searching for (inclusive).
  * If a certain index is negative, the length of that axis of the array will be added to it.
+ * @param maxDepth The deepest axis the method will traverse. Defaults to `Infinity`.
  * @returns `true` if the element is found in the array, or `false` otherwise.
  */
-export function nestedIncludesFromLast<A extends readonly unknown[]>(
+export function nestedIncludesFromLast<A extends readonly unknown[], M extends number = Infinity>(
   array: A,
-  searchElement: ElementType<A>,
-  fromIndices?: Indices<A>
+  searchElement: ElementType<A, M>,
+  fromIndices?: Indices<A, M>,
+  maxDepth?: Narrow<M>
 ): boolean;
 
-export function nestedIncludesFromLast<T>(array: NDArray<T>, searchElement: T, fromIndices: number[] = []) {
+export function nestedIncludesFromLast<T>(
+  array: NDArray<T>,
+  searchElement: T,
+  fromIndices: number[] = [],
+  maxDepth = Infinity
+) {
+  maxDepth = assertPositive(maxDepth);
   return (function recursive(parent: NDArray<T>, axis: number): boolean {
     for (let index = toValidLastIndex(fromIndices[axis], parent); index >= 0; index--) {
       const value = parent[index];
-      if (isArrayLike(value)) {
+      if (isArrayLike(value) && axis + 1 < maxDepth) {
         if (recursive(value, axis + 1)) return true;
       } else if (value === searchElement) return true;
     }
@@ -401,20 +471,23 @@ export function nestedIncludesFromLast<T>(array: NDArray<T>, searchElement: T, f
  * @param searchElement The element to search for.
  * @param fromIndices The coordinates at which to begin searching for (inclusive).
  * If a certain index is negative, the length of that axis of the array will be added to it.
+ * @param maxDepth The deepest axis the method will traverse. Defaults to `Infinity`.
  * @returns A number array containing the coordinates of the element, or `undefined` if it is not present.
  */
-export function nestedIndexOf<A extends readonly unknown[]>(
+export function nestedIndexOf<A extends readonly unknown[], M extends number = Infinity>(
   array: A,
-  searchElement: ElementType<A>,
-  fromIndices?: Indices<A>
-): Indices<A> | undefined;
+  searchElement: ElementType<A, M>,
+  fromIndices?: Indices<A, M>,
+  maxDepth?: Narrow<M>
+): Indices<A, M> | undefined;
 
-export function nestedIndexOf<T>(array: NDArray<T>, searchElement: T, fromIndices: number[] = []) {
+export function nestedIndexOf<T>(array: NDArray<T>, searchElement: T, fromIndices: number[] = [], maxDepth = Infinity) {
+  maxDepth = assertPositive(maxDepth);
   return (function recursive(parent: NDArray<T>, indices: number[]): [false] | [true, number[]] {
     for (let index = toValidIndex(fromIndices[indices.length], parent); index < parent.length; index++) {
       const value = parent[index];
       const newIndices = indices.concat(index);
-      if (isArrayLike(value)) {
+      if (isArrayLike(value) && newIndices.length < maxDepth) {
         const result = recursive(value, newIndices);
         if (result[0]) return result;
       } else if (value === searchElement) return [true, newIndices];
@@ -434,20 +507,28 @@ export function nestedIndexOf<T>(array: NDArray<T>, searchElement: T, fromIndice
  * @param searchElement The element to search for.
  * @param fromIndices The coordinates at which to begin searching for (inclusive).
  * If a certain index is negative, the length of that axis of the array will be added to it.
+ * @param maxDepth The deepest axis the method will traverse. Defaults to `Infinity`.
  * @returns A number array containing the coordinates of the element, or `undefined` if it is not present.
  */
-export function nestedLastIndexOf<A extends readonly unknown[]>(
+export function nestedLastIndexOf<A extends readonly unknown[], M extends number = Infinity>(
   array: A,
-  searchElement: ElementType<A>,
-  fromIndices?: Indices<A>
-): Indices<A> | undefined;
+  searchElement: ElementType<A, M>,
+  fromIndices?: Indices<A, M>,
+  maxDepth?: Narrow<M>
+): Indices<A, M> | undefined;
 
-export function nestedLastIndexOf<T>(array: NDArray<T>, searchElement: T, fromIndices: number[] = []) {
+export function nestedLastIndexOf<T>(
+  array: NDArray<T>,
+  searchElement: T,
+  fromIndices: number[] = [],
+  maxDepth = Infinity
+) {
+  maxDepth = assertPositive(maxDepth);
   return (function recursive(parent: NDArray<T>, indices: number[]): [false] | [true, number[]] {
     for (let index = toValidLastIndex(fromIndices[indices.length], parent); index >= 0; index--) {
       const value = parent[index];
       const newIndices = indices.concat(index);
-      if (isArrayLike(value)) {
+      if (isArrayLike(value) && newIndices.length < maxDepth) {
         const result = recursive(value, newIndices);
         if (result[0]) return result;
       } else if (value === searchElement) return [true, newIndices];
@@ -468,15 +549,28 @@ export function nestedLastIndexOf<T>(array: NDArray<T>, searchElement: T, fromIn
  * The `nestedFind` method calls the `predicate` function one time for each element in the array until it returns a truthy value.
  * @param fromIndices The coordinates at which to begin searching for (inclusive).
  * If a certain index is negative, the length of that axis of the array will be added to it.
+ * @param maxDepth The deepest axis the method will traverse. Defaults to `Infinity`.
  * @param thisArg An object to which the `this` keyword can refer in the `predicate` function.
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns The value of the first element in the array that satisfies the `predicate` function, or `undefined` if there is no such element.
  */
-export function nestedFind<A extends readonly unknown[], S extends ElementType<A>, This = undefined>(
+export function nestedFind<
+  A extends readonly unknown[],
+  S extends ElementType<A, M>,
+  M extends number = Infinity,
+  This = undefined
+>(
   array: A,
-  predicate: (this: This, value: ElementType<A>, indices: Indices<A>, array: A, parent: Parent<A>) => value is S,
-  fromIndices?: Indices<A>,
-  thisArg?: This
+  predicate: (
+    this: This,
+    value: ElementType<A, M>,
+    indices: Indices<A, M>,
+    array: A,
+    parent: Parent<A, M>
+  ) => value is S,
+  fromIndices?: Indices<A, M>,
+  maxDepth?: Narrow<M>,
+  thisArg?: Narrow<This>
 ): S | undefined;
 
 /**
@@ -491,30 +585,35 @@ export function nestedFind<A extends readonly unknown[], S extends ElementType<A
  * The `nestedFind` method calls the `predicate` function one time for each element in the array until it returns a truthy value.
  * @param fromIndices The coordinates at which to begin searching for (inclusive).
  * If a certain index is negative, the length of that axis of the array will be added to it.
+ * @param maxDepth The deepest axis the method will traverse. Defaults to `Infinity`.
  * @param thisArg An object to which the `this` keyword can refer in the `predicate` function.
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns The value of the first element in the array that satisfies the `predicate` function, or `undefined` if there is no such element.
  */
-export function nestedFind<A extends readonly unknown[], This = undefined>(
+export function nestedFind<A extends readonly unknown[], M extends number = Infinity, This = undefined>(
   array: A,
-  predicate: (this: This, value: ElementType<A>, indices: Indices<A>, array: A, parent: Parent<A>) => unknown,
-  fromIndices?: Indices<A>,
-  thisArg?: This
-): ElementType<A> | undefined;
+  predicate: (this: This, value: ElementType<A, M>, indices: Indices<A, M>, array: A, parent: Parent<A, M>) => unknown,
+  fromIndices?: Indices<A, M>,
+  maxDepth?: Narrow<M>,
+  thisArg?: Narrow<This>
+): ElementType<A, M> | undefined;
 
 export function nestedFind<T>(
   array: NDArray<T>,
-  predicate: (value: T, indices: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
+  predicate: (value: T | NDArray<T>, indices: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
   fromIndices: number[] = [],
+  maxDepth = Infinity,
   thisArg?: any
 ) {
-  return (function recursive(parent: NDArray<T>, indices: number[]): [false] | [true, T] {
+  maxDepth = assertPositive(maxDepth);
+  return (function recursive(parent: NDArray<T>, indices: number[]): [false] | [true, T | NDArray<T>] {
     for (let index = toValidIndex(fromIndices[indices.length], parent); index < parent.length; index++) {
       const value = parent[index];
-      if (isArrayLike(value)) {
-        const result = recursive(value, indices.concat(index));
+      const newIndices = indices.concat(index);
+      if (isArrayLike(value) && newIndices.length < maxDepth) {
+        const result = recursive(value, newIndices);
         if (result[0]) return result;
-      } else if (predicate.call(thisArg, value, indices.concat(index), array, parent)) return [true, value];
+      } else if (predicate.call(thisArg, value, newIndices, array, parent)) return [true, value];
     }
     return [false];
   })(array, [])[1];
@@ -532,15 +631,28 @@ export function nestedFind<T>(
  * The `nestedFindLast` method calls the `predicate` function one time for each element in the array until it returns a truthy value.
  * @param fromIndices The coordinates at which to begin searching for (inclusive).
  * If a certain index is negative, the length of that axis of the array will be added to it.
+ * @param maxDepth The deepest axis the method will traverse. Defaults to `Infinity`.
  * @param thisArg An object to which the `this` keyword can refer in the `predicate` function.
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns The value of the last element in the array that satisfies the `predicate` function, or `undefined` if there is no such element.
  */
-export function nestedFindLast<A extends readonly unknown[], S extends ElementType<A>, This = undefined>(
+export function nestedFindLast<
+  A extends readonly unknown[],
+  S extends ElementType<A, M>,
+  M extends number = Infinity,
+  This = undefined
+>(
   array: A,
-  predicate: (this: This, value: ElementType<A>, indices: Indices<A>, array: A, parent: Parent<A>) => value is S,
-  fromIndices?: Indices<A>,
-  thisArg?: This
+  predicate: (
+    this: This,
+    value: ElementType<A, M>,
+    indices: Indices<A, M>,
+    array: A,
+    parent: Parent<A, M>
+  ) => value is S,
+  fromIndices?: Indices<A, M>,
+  maxDepth?: Narrow<M>,
+  thisArg?: Narrow<This>
 ): S | undefined;
 
 /**
@@ -555,30 +667,35 @@ export function nestedFindLast<A extends readonly unknown[], S extends ElementTy
  * The `nestedFindLast` method calls the `predicate` function one time for each element in the array until it returns a truthy value.
  * @param fromIndices The coordinates at which to begin searching for (inclusive).
  * If a certain index is negative, the length of that axis of the array will be added to it.
+ * @param maxDepth The deepest axis the method will traverse. Defaults to `Infinity`.
  * @param thisArg An object to which the `this` keyword can refer in the `predicate` function.
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns The value of the last element in the array that satisfies the `predicate` function, or `undefined` if there is no such element.
  */
-export function nestedFindLast<A extends readonly unknown[], This = undefined>(
+export function nestedFindLast<A extends readonly unknown[], M extends number = Infinity, This = undefined>(
   array: A,
-  predicate: (this: This, value: ElementType<A>, indices: Indices<A>, array: A, parent: Parent<A>) => unknown,
-  fromIndices?: Indices<A>,
-  thisArg?: This
-): ElementType<A> | undefined;
+  predicate: (this: This, value: ElementType<A, M>, indices: Indices<A, M>, array: A, parent: Parent<A, M>) => unknown,
+  fromIndices?: Indices<A, M>,
+  maxDepth?: Narrow<M>,
+  thisArg?: Narrow<This>
+): ElementType<A, M> | undefined;
 
 export function nestedFindLast<T>(
   array: NDArray<T>,
-  predicate: (value: T, indices: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
+  predicate: (value: T | NDArray<T>, indices: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
   fromIndices: number[] = [],
+  maxDepth = Infinity,
   thisArg?: any
 ) {
-  return (function recursive(parent: NDArray<T>, indices: number[]): [false] | [true, T] {
+  maxDepth = assertPositive(maxDepth);
+  return (function recursive(parent: NDArray<T>, indices: number[]): [false] | [true, T | NDArray<T>] {
     for (let index = toValidLastIndex(fromIndices[indices.length], parent); index >= 0; index--) {
       const value = parent[index];
-      if (isArrayLike(value)) {
-        const result = recursive(value, indices.concat(index));
+      const newIndices = indices.concat(index);
+      if (isArrayLike(value) && newIndices.length < maxDepth) {
+        const result = recursive(value, newIndices);
         if (result[0]) return result;
-      } else if (predicate.call(thisArg, value, indices.concat(index), array, parent)) return [true, value];
+      } else if (predicate.call(thisArg, value, newIndices, array, parent)) return [true, value];
     }
     return [false];
   })(array, [])[1];
@@ -596,28 +713,32 @@ export function nestedFindLast<T>(
  * The `nestedFindIndex` method calls the `predicate` function one time for each element in the array until it returns a truthy value.
  * @param fromIndices The coordinates at which to begin searching for (inclusive).
  * If a certain index is negative, the length of that axis of the array will be added to it.
+ * @param maxDepth The deepest axis the method will traverse. Defaults to `Infinity`.
  * @param thisArg An object to which the `this` keyword can refer in the `predicate` function.
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns The coordinates of the first element in the array that satisfies the `predicate` function, or `undefined` if there is no such element.
  */
-export function nestedFindIndex<A extends readonly unknown[], This = undefined>(
+export function nestedFindIndex<A extends readonly unknown[], M extends number = Infinity, This = undefined>(
   array: A,
-  predicate: (this: This, value: ElementType<A>, indices: Indices<A>, array: A, parent: Parent<A>) => unknown,
-  fromIndices?: Indices<A>,
-  thisArg?: This
-): Indices<A> | undefined;
+  predicate: (this: This, value: ElementType<A, M>, indices: Indices<A, M>, array: A, parent: Parent<A, M>) => unknown,
+  fromIndices?: Indices<A, M>,
+  maxDepth?: Narrow<M>,
+  thisArg?: Narrow<This>
+): Indices<A, M> | undefined;
 
 export function nestedFindIndex<T>(
   array: NDArray<T>,
-  predicate: (value: T, indices: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
+  predicate: (value: T | NDArray<T>, indices: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
   fromIndices: number[] = [],
+  maxDepth = Infinity,
   thisArg?: any
 ) {
+  maxDepth = assertPositive(maxDepth);
   return (function recursive(parent: NDArray<T>, indices: number[]): [false] | [true, number[]] {
     for (let index = toValidIndex(fromIndices[indices.length], parent); index < parent.length; index++) {
       const value = parent[index];
       const newIndices = indices.concat(index);
-      if (isArrayLike(value)) {
+      if (isArrayLike(value) && newIndices.length < maxDepth) {
         const result = recursive(value, newIndices);
         if (result[0]) return result;
       } else if (predicate.call(thisArg, value, newIndices, array, parent)) return [true, newIndices];
@@ -638,28 +759,32 @@ export function nestedFindIndex<T>(
  * The `nestedFindLastIndex` method calls the `predicate` function one time for each element in the array until it returns a truthy value.
  * @param fromIndices The coordinates at which to begin searching for (inclusive).
  * If a certain index is negative, the length of that axis of the array will be added to it.
+ * @param maxDepth The deepest axis the method will traverse. Defaults to `Infinity`.
  * @param thisArg An object to which the `this` keyword can refer in the `predicate` function.
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns The coordinates of the last element in the array that satisfies the `predicate` function, or `undefined` if there is no such element.
  */
-export function nestedFindLastIndex<A extends readonly unknown[], This = undefined>(
+export function nestedFindLastIndex<A extends readonly unknown[], M extends number = Infinity, This = undefined>(
   array: A,
-  predicate: (this: This, value: ElementType<A>, indices: Indices<A>, array: A, parent: Parent<A>) => unknown,
-  fromIndices?: Indices<A>,
-  thisArg?: This
-): Indices<A> | undefined;
+  predicate: (this: This, value: ElementType<A, M>, indices: Indices<A, M>, array: A, parent: Parent<A, M>) => unknown,
+  fromIndices?: Indices<A, M>,
+  maxDepth?: Narrow<M>,
+  thisArg?: Narrow<This>
+): Indices<A, M> | undefined;
 
 export function nestedFindLastIndex<T>(
   array: NDArray<T>,
-  predicate: (value: T, indices: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
+  predicate: (value: T | NDArray<T>, indices: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
   fromIndices: number[] = [],
+  maxDepth = Infinity,
   thisArg?: any
 ) {
+  maxDepth = assertPositive(maxDepth);
   return (function recursive(parent: NDArray<T>, indices: number[]): [false] | [true, number[]] {
     for (let index = toValidLastIndex(fromIndices[indices.length], parent); index >= 0; index--) {
       const value = parent[index];
       const newIndices = indices.concat(index);
-      if (isArrayLike(value)) {
+      if (isArrayLike(value) && newIndices.length < maxDepth) {
         const result = recursive(value, newIndices);
         if (result[0]) return result;
       } else if (predicate.call(thisArg, value, newIndices, array, parent)) return [true, newIndices];
@@ -680,29 +805,34 @@ export function nestedFindLastIndex<T>(
  * The `nestedSome` method calls the `predicate` function one time for each element in the array until it returns a truthy value.
  * @param fromIndices The coordinates at which to begin searching for (inclusive).
  * If a certain index is negative, the length of that axis of the array will be added to it.
+ * @param maxDepth The deepest axis the method will traverse. Defaults to `Infinity`.
  * @param thisArg An object to which the `this` keyword can refer in the `predicate` function.
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns `true` if at least one element in the array satisfies the `predicate` function, or `false` otherwise.
  */
-export function nestedSome<A extends readonly unknown[], This = undefined>(
+export function nestedSome<A extends readonly unknown[], M extends number = Infinity, This = undefined>(
   array: A,
-  predicate: (this: This, value: ElementType<A>, indices: Indices<A>, array: A, parent: Parent<A>) => unknown,
-  fromIndices?: Indices<A>,
-  thisArg?: This
+  predicate: (this: This, value: ElementType<A, M>, indices: Indices<A, M>, array: A, parent: Parent<A, M>) => unknown,
+  fromIndices?: Indices<A, M>,
+  maxDepth?: Narrow<M>,
+  thisArg?: Narrow<This>
 ): boolean;
 
 export function nestedSome<T>(
   array: NDArray<T>,
-  predicate: (value: T, indices: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
+  predicate: (value: T | NDArray<T>, indices: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
   fromIndices: number[] = [],
+  maxDepth = Infinity,
   thisArg?: any
 ) {
+  maxDepth = assertPositive(maxDepth);
   return (function recursive(parent: NDArray<T>, indices: number[]): boolean {
     for (let index = toValidIndex(fromIndices[indices.length], parent); index < parent.length; index++) {
       const value = parent[index];
-      if (isArrayLike(value)) {
-        if (recursive(value, indices.concat(index))) return true;
-      } else if (predicate.call(thisArg, value, indices.concat(index), array, parent)) return true;
+      const newIndices = indices.concat(index);
+      if (isArrayLike(value) && newIndices.length < maxDepth) {
+        if (recursive(value, newIndices)) return true;
+      } else if (predicate.call(thisArg, value, newIndices, array, parent)) return true;
     }
     return false;
   })(array, []);
@@ -720,29 +850,34 @@ export function nestedSome<T>(
  * The `nestedSomeFromLast` method calls the `predicate` function one time for each element in the array until it returns a truthy value.
  * @param fromIndices The coordinates at which to begin searching for (inclusive).
  * If a certain index is negative, the length of that axis of the array will be added to it.
+ * @param maxDepth The deepest axis the method will traverse. Defaults to `Infinity`.
  * @param thisArg An object to which the `this` keyword can refer in the `predicate` function.
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns `true` if at least one element in the array satisfies the `predicate` function, or `false` otherwise.
  */
-export function nestedSomeFromLast<A extends readonly unknown[], This = undefined>(
+export function nestedSomeFromLast<A extends readonly unknown[], M extends number = Infinity, This = undefined>(
   array: A,
-  predicate: (this: This, value: ElementType<A>, indices: Indices<A>, array: A, parent: Parent<A>) => unknown,
-  fromIndices?: Indices<A>,
-  thisArg?: This
+  predicate: (this: This, value: ElementType<A, M>, indices: Indices<A, M>, array: A, parent: Parent<A, M>) => unknown,
+  fromIndices?: Indices<A, M>,
+  maxDepth?: Narrow<M>,
+  thisArg?: Narrow<This>
 ): boolean;
 
 export function nestedSomeFromLast<T>(
   array: NDArray<T>,
-  predicate: (value: T, indices: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
+  predicate: (value: T | NDArray<T>, indices: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
   fromIndices: number[] = [],
+  maxDepth = Infinity,
   thisArg?: any
 ) {
+  maxDepth = assertPositive(maxDepth);
   return (function recursive(parent: NDArray<T>, indices: number[]): boolean {
     for (let index = toValidLastIndex(fromIndices[indices.length], parent); index >= 0; index--) {
       const value = parent[index];
-      if (isArrayLike(value)) {
-        if (recursive(value, indices.concat(index))) return true;
-      } else if (predicate.call(thisArg, value, indices.concat(index), array, parent)) return true;
+      const newIndices = indices.concat(index);
+      if (isArrayLike(value) && newIndices.length < maxDepth) {
+        if (recursive(value, newIndices)) return true;
+      } else if (predicate.call(thisArg, value, newIndices, array, parent)) return true;
     }
     return false;
   })(array, []);
@@ -760,16 +895,29 @@ export function nestedSomeFromLast<T>(
  * The `nestedEvery` method calls the `predicate` function one time for each element in the array until it returns a falsy value.
  * @param fromIndices The coordinates at which to begin searching for (inclusive).
  * If a certain index is negative, the length of that axis of the array will be added to it.
+ * @param maxDepth The deepest axis the method will traverse. Defaults to `Infinity`.
  * @param thisArg An object to which the `this` keyword can refer in the `predicate` function.
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns `true` if all elements in the array satisfies the `predicate` function, or `false` otherwise.
  */
-export function nestedEvery<A extends readonly unknown[], S extends ElementType<A>, This = undefined>(
+export function nestedEvery<
+  A extends readonly unknown[],
+  S extends ElementType<A, M>,
+  M extends number = Infinity,
+  This = undefined
+>(
   array: A,
-  predicate: (this: This, value: ElementType<A>, indices: Indices<A>, array: A, parent: Parent<A>) => value is S,
-  fromIndices?: Indices<A>,
-  thisArg?: This
-): array is Map<A, S> extends A ? Map<A, S> : A;
+  predicate: (
+    this: This,
+    value: ElementType<A, M>,
+    indices: Indices<A, M>,
+    array: A,
+    parent: Parent<A, M>
+  ) => value is S,
+  fromIndices?: Indices<A, M>,
+  maxDepth?: Narrow<M>,
+  thisArg?: Narrow<This>
+): array is Cast<Map<A, S, M>, A>;
 
 /**
  * Determines whether all elements in a nested array satisfies the `predicate` function, searching forwards.
@@ -783,29 +931,34 @@ export function nestedEvery<A extends readonly unknown[], S extends ElementType<
  * The `nestedEvery` method calls the `predicate` function one time for each element in the array until it returns a falsy value.
  * @param fromIndices The coordinates at which to begin searching for (inclusive).
  * If a certain index is negative, the length of that axis of the array will be added to it.
+ * @param maxDepth The deepest axis the method will traverse. Defaults to `Infinity`.
  * @param thisArg An object to which the `this` keyword can refer in the `predicate` function.
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns `true` if all elements in the array satisfies the `predicate` function, or `false` otherwise.
  */
-export function nestedEvery<A extends readonly unknown[], This = undefined>(
+export function nestedEvery<A extends readonly unknown[], M extends number = Infinity, This = undefined>(
   array: A,
-  predicate: (this: This, value: ElementType<A>, indices: Indices<A>, array: A, parent: Parent<A>) => unknown,
-  fromIndices?: Indices<A>,
-  thisArg?: This
+  predicate: (this: This, value: ElementType<A, M>, indices: Indices<A, M>, array: A, parent: Parent<A, M>) => unknown,
+  fromIndices?: Indices<A, M>,
+  maxDepth?: Narrow<M>,
+  thisArg?: Narrow<This>
 ): boolean;
 
 export function nestedEvery<T>(
   array: NDArray<T>,
-  predicate: (value: T, indices: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
+  predicate: (value: T | NDArray<T>, indices: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
   fromIndices: number[] = [],
+  maxDepth = Infinity,
   thisArg?: any
 ) {
+  maxDepth = assertPositive(maxDepth);
   return (function recursive(parent: NDArray<T>, indices: number[]): boolean {
     for (let index = toValidIndex(fromIndices[indices.length], parent); index < parent.length; index++) {
       const value = parent[index];
-      if (isArrayLike(value)) {
-        if (!recursive(value, indices.concat(index))) return false;
-      } else if (!predicate.call(thisArg, value, indices.concat(index), array, parent)) return false;
+      const newIndices = indices.concat(index);
+      if (isArrayLike(value) && newIndices.length < maxDepth) {
+        if (!recursive(value, newIndices)) return false;
+      } else if (!predicate.call(thisArg, value, newIndices, array, parent)) return false;
     }
     return true;
   })(array, []);
@@ -823,16 +976,29 @@ export function nestedEvery<T>(
  * The `nestedEvery` method calls the `predicate` function one time for each element in the array until it returns a falsy value.
  * @param fromIndices The coordinates at which to begin searching for (inclusive).
  * If a certain index is negative, the length of that axis of the array will be added to it.
+ * @param maxDepth The deepest axis the method will traverse. Defaults to `Infinity`.
  * @param thisArg An object to which the `this` keyword can refer in the `predicate` function.
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns `true` if all elements in the array satisfies the `predicate` function, or `false` otherwise.
  */
-export function nestedEveryFromLast<A extends readonly unknown[], S extends ElementType<A>, This = undefined>(
+export function nestedEveryFromLast<
+  A extends readonly unknown[],
+  S extends ElementType<A, M>,
+  M extends number = Infinity,
+  This = undefined
+>(
   array: A,
-  predicate: (this: This, value: ElementType<A>, indices: Indices<A>, array: A, parent: Parent<A>) => value is S,
-  fromIndices?: Indices<A>,
-  thisArg?: This
-): array is Map<A, S> extends A ? Map<A, S> : A;
+  predicate: (
+    this: This,
+    value: ElementType<A, M>,
+    indices: Indices<A, M>,
+    array: A,
+    parent: Parent<A, M>
+  ) => value is S,
+  fromIndices?: Indices<A, M>,
+  maxDepth?: Narrow<M>,
+  thisArg?: Narrow<This>
+): array is Cast<Map<A, S, M>, A>;
 
 /**
  * Determines whether all elements in a nested array satisfies the `predicate` function, searching backwards.
@@ -846,29 +1012,34 @@ export function nestedEveryFromLast<A extends readonly unknown[], S extends Elem
  * The `nestedEvery` method calls the `predicate` function one time for each element in the array until it returns a falsy value.
  * @param fromIndices The coordinates at which to begin searching for (inclusive).
  * If a certain index is negative, the length of that axis of the array will be added to it.
+ * @param maxDepth The deepest axis the method will traverse. Defaults to `Infinity`.
  * @param thisArg An object to which the `this` keyword can refer in the `predicate` function.
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns `true` if all elements in the array satisfies the `predicate` function, or `false` otherwise.
  */
-export function nestedEveryFromLast<A extends readonly unknown[], This = undefined>(
+export function nestedEveryFromLast<A extends readonly unknown[], M extends number = Infinity, This = undefined>(
   array: A,
-  predicate: (this: This, value: ElementType<A>, indices: Indices<A>, array: A, parent: Parent<A>) => unknown,
-  fromIndices?: Indices<A>,
-  thisArg?: This
+  predicate: (this: This, value: ElementType<A, M>, indices: Indices<A, M>, array: A, parent: Parent<A, M>) => unknown,
+  fromIndices?: Indices<A, M>,
+  maxDepth?: Narrow<M>,
+  thisArg?: Narrow<This>
 ): boolean;
 
 export function nestedEveryFromLast<T>(
   array: NDArray<T>,
-  predicate: (value: T, indices: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
+  predicate: (value: T | NDArray<T>, indices: number[], array: NDArray<T>, parent: NDArray<T>) => unknown,
   fromIndices: number[] = [],
+  maxDepth = Infinity,
   thisArg?: any
 ) {
+  maxDepth = assertPositive(maxDepth);
   return (function recursive(parent: NDArray<T>, indices: number[]): boolean {
     for (let index = toValidLastIndex(fromIndices[indices.length], parent); index >= 0; index--) {
       const value = parent[index];
-      if (isArrayLike(value)) {
-        if (!recursive(value, indices.concat(index))) return false;
-      } else if (!predicate.call(thisArg, value, indices.concat(index), array, parent)) return false;
+      const newIndices = indices.concat(index);
+      if (isArrayLike(value) && newIndices.length < maxDepth) {
+        if (!recursive(value, newIndices)) return false;
+      } else if (!predicate.call(thisArg, value, newIndices, array, parent)) return false;
     }
     return true;
   })(array, []);

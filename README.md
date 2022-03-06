@@ -184,7 +184,7 @@ ___
 
 ### shape, shapeAtOrigin
 
-▸ `array`.**shape**(): `number`[]
+▸ `array`.**shape**(`maxDepth?`): `number`[]
 
 Gets the length of each axis of a nested array. The `shape` method returns the shape at the deepest element.
 
@@ -193,7 +193,7 @@ Gets the length of each axis of a nested array. The `shape` method returns the s
 [[0, 1], [2, [3, 4], 5]].shape(); // [2, 3, 2]
 ```
 
-▸ `array`.**shapeAtOrigin**(): `number`[]
+▸ `array`.**shapeAtOrigin**(`maxDepth?`): `number`[]
 
 Gets the length of each axis of a nested array. The `shapeAtOrigin` method only checks the first element recursively.
 
@@ -207,6 +207,7 @@ Gets the length of each axis of a nested array. The `shapeAtOrigin` method only 
 | Name | Type | Description |
 | :------ | :------ | :------ |
 | `array` | `NDArray`<`unknown`\> | The original array. |
+| `maxDepth?` | `number` | The deepest axis the method will traverse. Defaults to `Infinity`. |
 
 #### Returns
 
@@ -218,7 +219,7 @@ ___
 
 ### nestedMap
 
-▸ `array`<`T`\>.**nestedMap**<`U`\>(`callbackfn`, `thisArg?`): `NDArray`<`U`\>
+▸ `array`<`T`\>.**nestedMap**<`U`\>(`callbackfn`, `maxDepth?`, `thisArg?`): `NDArray`<`U`\>
 
 Calls a defined callback function on each element in a nested array, and returns a deeply-cloned array that contains the results.
 
@@ -232,6 +233,7 @@ Calls a defined callback function on each element in a nested array, and returns
 | :------ | :------ | :------ |
 | `array` | `NDArray`<`T`\> | The original array. |
 | `callbackfn` | (`value`: `T`, `index`: `number`[], `array`: `NDArray`<`T`\>, `parent`: `NDArray`<`T`\>) => `U` | A function that accepts up to 4 arguments. The `nestedMap` method calls the `callbackfn` function one time for each element in the array. |
+| `maxDepth?` | `number` | The deepest axis the method will traverse. Defaults to `Infinity`. |
 | `thisArg?` | `any` | An object to which the `this` keyword can refer in the `callbackfn` function. If `thisArg` is omitted, `undefined` is used as the `this` value. |
 
 #### Returns
@@ -244,7 +246,7 @@ ___
 
 ### nestedForEach
 
-▸ `array`<`T`\>.**nestedForEach**<`U`\>(`callbackfn`, `thisArg?`): `void`
+▸ `array`<`T`\>.**nestedForEach**<`U`\>(`callbackfn`, `maxDepth?`, `thisArg?`): `void`
 
 Performs the specified action for each element in a nested array.
 
@@ -258,6 +260,7 @@ Performs the specified action for each element in a nested array.
 | :------ | :------ | :------ |
 | `array` | `NDArray`<`T`\> | The original array. |
 | `callbackfn` | (`value`: `T`, `index`: `number`[], `array`: `NDArray`<`T`\>, `parent`: `NDArray`<`T`\>) => `U` | A function that accepts up to 4 arguments. The `nestedForEach` method calls the `callbackfn` function one time for each element in the array. |
+| `maxDepth?` | `number` | The deepest axis the method will traverse. Defaults to `Infinity`. |
 | `thisArg?` | `any` | An object to which the `this` keyword can refer in the `callbackfn` function. If `thisArg` is omitted, `undefined` is used as the `this` value. |
 
 ### nestedSplit
@@ -287,7 +290,7 @@ ___
 
 ### nestedJoin
 
-▸ `separators`.**nestedJoin**(`content`): `string`
+▸ `separators`.**nestedJoin**(`content`, `maxDepth?`): `string`
 
 Concatenates all the elements in a nested array into a string, separated by the specified separator strings for each axis.
 
@@ -301,6 +304,7 @@ Concatenates all the elements in a nested array into a string, separated by the 
 | :------ | :------ | :------ |
 | `separators` | `string`[] | A string used to separate one element of the array from the next in the resulting string. If a certain separator is `undefined`, a comma (`,`) is used instead for that axis. |
 | `content` | `NDArray`<`unknown`\> | The array to join. |
+| `maxDepth?` | `number` | The deepest axis the method will traverse. Defaults to `Infinity`. |
 
 #### Returns
 
@@ -312,7 +316,7 @@ ___
 
 ### nestedFill
 
-▸ `array`<`T`\>.**nestedFill**(`value`, `startIndices?`, `endIndices?`): `NDArray`<`T`\>
+▸ `array`<`T`\>.**nestedFill**(`value`, `startIndices?`, `endIndices?`, `maxDepth?`): `NDArray`<`T`\>
 
 Changes all elements in a nested array from `startIndices` to `endIndices` to a static value in place and returns the array.
 
@@ -331,6 +335,7 @@ If both `startIndices` and `endIndices` are omitted, all the elements will be re
 | `value` | `T` | The value to fill the section of the array with. |
 | `startIndices?` | `number`[] | The coordinates to start filling the array at (inclusive). If a certain start index is negative, the length of that axis of the array will be added to it. |
 | `endIndices?` | `number`[] | The coordinates to stop filling the array at (exclusive). If a certain end index is negative, the length of that axis of the array will be added to it. |
+| `maxDepth?` | `number` | The deepest axis the method will traverse. Defaults to `Infinity`. |
 
 #### Returns
 
@@ -342,7 +347,7 @@ ___
 
 ### nestedFillMap
 
-▸ `array`<`T`\>.**nestedFillMap**(`callbackfn`, `startIndices?`, `endIndices?`, `thisArg?`): `NDArray`<`T`\>
+▸ `array`<`T`\>.**nestedFillMap**(`callbackfn`, `startIndices?`, `endIndices?`, `maxDepth?`, `thisArg?`): `NDArray`<`T`\>
 
 Calls a defined callback function on all elements in a nested array from `startIndices` to `endIndices` in place and returns the array.
 
@@ -361,6 +366,7 @@ If both `startIndices` and `endIndices` are omitted, the result is the same as t
 | `callbackfn` | (`value`: `T`, `index`: `number`[], `array`: `NDArray`<`T`\>, `parent`: `NDArray`<`T`\>) => `T` | A function that accepts up to 4 arguments. The `nestedFillMap` method calls the `callbackfn` function one time for each element in the array. |
 | `startIndices?` | `number`[] | The coordinates to start filling the array at (inclusive). If a certain start index is negative, the length of that axis of the array will be added to it. |
 | `endIndices?` | `number`[] | The coordinates to stop filling the array at (exclusive). If a certain end index is negative, the length of that axis of the array will be added to it. |
+| `maxDepth?` | `number` | The deepest axis the method will traverse. Defaults to `Infinity`. |
 | `thisArg?` | `any` | An object to which the `this` keyword can refer in the `callbackfn` function. If `thisArg` is omitted, `undefined` is used as the `this` value. |
 
 #### Returns
@@ -373,7 +379,7 @@ ___
 
 ### nestedIncludes, nestedIncludesFromLast
 
-▸ `array`<`T`\>.**nestedIncludes**(`searchElement`, `fromIndices?`): `boolean`
+▸ `array`<`T`\>.**nestedIncludes**(`searchElement`, `fromIndices?`, `maxDepth?`): `boolean`
 
 Determines whether a nested array includes a specified element, searching forwards.
 
@@ -382,7 +388,7 @@ Determines whether a nested array includes a specified element, searching forwar
 [[0, 1, 2], [3, 4, 5]].nestedIncludes(3, [0, 1]); // false
 ```
 
-▸ `array`<`T`\>.**nestedIncludesFromLast**(`searchElement`, `fromIndices?`): `boolean`
+▸ `array`<`T`\>.**nestedIncludesFromLast**(`searchElement`, `fromIndices?`, `maxDepth?`): `boolean`
 
 Determines whether a nested array includes a specified element, searching backwards.
 
@@ -398,6 +404,7 @@ Determines whether a nested array includes a specified element, searching backwa
 | `array` | `NDArray`<`T`\> | The original array. |
 | `searchElement` | `T` | The element to search for. |
 | `fromIndices?` | `number`[] | The coordinates at which to begin searching for (inclusive). If a certain index is negative, the length of that axis of the array will be added to it. |
+| `maxDepth?` | `number` | The deepest axis the method will traverse. Defaults to `Infinity`. |
 
 #### Returns
 
@@ -409,7 +416,7 @@ ___
 
 ### nestedIndexOf, nestedLastIndexOf
 
-▸ `array`<`T`\>.**nestedIndexOf**(`searchElement`, `fromIndices?`): `number`[] \| `undefined`
+▸ `array`<`T`\>.**nestedIndexOf**(`searchElement`, `fromIndices?`, `maxDepth?`): `number`[] \| `undefined`
 
 Returns the coordinates of the first occurrence of a specified value in an array, or `undefined` if it is not present.
 
@@ -418,7 +425,7 @@ Returns the coordinates of the first occurrence of a specified value in an array
 [[0, 1, 2], [3, 4, 5]].nestedIndexOf(3, [0, 1]); // undefined
 ```
 
-▸ `array`<`T`\>.**nestedLastIndexOf**(`searchElement`, `fromIndices?`): `number`[] \| `undefined`
+▸ `array`<`T`\>.**nestedLastIndexOf**(`searchElement`, `fromIndices?`, `maxDepth?`): `number`[] \| `undefined`
 
 Returns the coordinates of the last occurrence of a specified value in an array, or `undefined` if it is not present.
 
@@ -434,6 +441,7 @@ Returns the coordinates of the last occurrence of a specified value in an array,
 | `array` | `NDArray`<`T`\> | The original array. |
 | `searchElement` | `T` | The element to search for. |
 | `fromIndices?` | `number`[] | The coordinates at which to begin searching for (inclusive). If a certain index is negative, the length of that axis of the array will be added to it. |
+| `maxDepth?` | `number` | The deepest axis the method will traverse. Defaults to `Infinity`. |
 
 #### Returns
 
@@ -445,7 +453,7 @@ ___
 
 ### nestedFind, nestedFindLast
 
-▸ `array`<`T`\>.**nestedFind**(`predicate`, `fromIndices?`, `thisArg?`): `T` \| `undefined`
+▸ `array`<`T`\>.**nestedFind**(`predicate`, `fromIndices?`, `maxDepth?`, `thisArg?`): `T` \| `undefined`
 
 Returns the value of the first element in a nested array that satisfies the `predicate` function, or `undefined` if there is no such element.
 
@@ -454,7 +462,7 @@ Returns the value of the first element in a nested array that satisfies the `pre
 [[0, 1, 2], [3, 4, 5]].nestedFind(n => n % 6 == 3, [0, 1]); // undefined
 ```
 
-▸ `array`<`T`\>.**nestedFindLast**(`predicate`, `fromIndices?`, `thisArg?`): `T` \| `undefined`
+▸ `array`<`T`\>.**nestedFindLast**(`predicate`, `fromIndices?`, `maxDepth?`, `thisArg?`): `T` \| `undefined`
 
 Returns the value of the last element in a nested array that satisfies the `predicate` function, or `undefined` if there is no such element.
 
@@ -470,6 +478,7 @@ Returns the value of the last element in a nested array that satisfies the `pred
 | `array` | `NDArray`<`T`\> | The original array. |
 | `predicate` | (`value`: `T`, `index`: `number`[], `array`: `NDArray`<`T`\>, `parent`: `NDArray`<`T`\>) => `unknown` | A function that accepts up to 4 arguments. The `nestedFind` method calls the `predicate` function one time for each element in the array until it returns a truthy value. |
 | `fromIndices?` | `number`[] | The coordinates at which to begin searching for (inclusive). If a certain index is negative, the length of that axis of the array will be added to it. |
+| `maxDepth?` | `number` | The deepest axis the method will traverse. Defaults to `Infinity`. |
 | `thisArg?` | `any` | An object to which the `this` keyword can refer in the `predicate` function. If `thisArg` is omitted, `undefined` is used as the `this` value. |
 
 #### Returns
@@ -482,7 +491,7 @@ ___
 
 ### nestedFindIndex, nestedFindLastIndex
 
-▸ `array`<`T`\>.**nestedFindIndex**(`predicate`, `fromIndices?`, `thisArg?`): `number`[] \| `undefined`
+▸ `array`<`T`\>.**nestedFindIndex**(`predicate`, `fromIndices?`, `maxDepth?`, `thisArg?`): `number`[] \| `undefined`
 
 Returns the coordinates of the first element in a nested array that satisfies the `predicate` function, or `undefined` if there is no such element.
 
@@ -491,7 +500,7 @@ Returns the coordinates of the first element in a nested array that satisfies th
 [[0, 1, 2], [3, 4, 5]].nestedFindIndex(n => n % 6 == 3, [0, 1]); // undefined
 ```
 
-▸ `array`<`T`\>.**nestedFindLastIndex**(`predicate`, `fromIndices?`, `thisArg?`): `number`[] \| `undefined`
+▸ `array`<`T`\>.**nestedFindLastIndex**(`predicate`, `fromIndices?`, `maxDepth?`, `thisArg?`): `number`[] \| `undefined`
 
 Returns the coordinates of the last element in a nested array that satisfies the `predicate` function, or `undefined` if there is no such element.
 
@@ -507,6 +516,7 @@ Returns the coordinates of the last element in a nested array that satisfies the
 | `array` | `NDArray`<`T`\> | The original array. |
 | `predicate` | (`value`: `T`, `index`: `number`[], `array`: `NDArray`<`T`\>, `parent`: `NDArray`<`T`\>) => `unknown` | A function that accepts up to 4 arguments. The `nestedFindIndex` method calls the `predicate` function one time for each element in the array until it returns a truthy value. |
 | `fromIndices?` | `number`[] | The coordinates at which to begin searching for (inclusive). If a certain index is negative, the length of that axis of the array will be added to it. |
+| `maxDepth?` | `number` | The deepest axis the method will traverse. Defaults to `Infinity`. |
 | `thisArg?` | `any` | An object to which the `this` keyword can refer in the `predicate` function. If `thisArg` is omitted, `undefined` is used as the `this` value. |
 
 #### Returns
@@ -519,7 +529,7 @@ ___
 
 ### nestedSome, nestedSomeFromLast
 
-▸ `array`<`T`\>.**nestedSome**(`predicate`, `fromIndices?`, `thisArg?`): `boolean`
+▸ `array`<`T`\>.**nestedSome**(`predicate`, `fromIndices?`, `maxDepth?`, `thisArg?`): `boolean`
 
 Determines whether at least one element in a nested array satisfies the `predicate` function, searching forwards.
 
@@ -528,7 +538,7 @@ Determines whether at least one element in a nested array satisfies the `predica
 [[0, 1, 2], [3, 4, 5]].nestedSome(n => n % 6 == 3, [0, 1]); // false
 ```
 
-▸ `array`<`T`\>.**nestedSomeFromLast**(`predicate`, `fromIndices?`, `thisArg?`): `boolean`
+▸ `array`<`T`\>.**nestedSomeFromLast**(`predicate`, `fromIndices?`, `maxDepth?`, `thisArg?`): `boolean`
 
 Determines whether at least one element in a nested array satisfies the `predicate` function, searching backwards.
 
@@ -544,6 +554,7 @@ Determines whether at least one element in a nested array satisfies the `predica
 | `array` | `NDArray`<`T`\> | The original array. |
 | `predicate` | (`value`: `T`, `index`: `number`[], `array`: `NDArray`<`T`\>, `parent`: `NDArray`<`T`\>) => `unknown` | A function that accepts up to 4 arguments. The `nestedSome` method calls the `predicate` function one time for each element in the array until it returns a truthy value. |
 | `fromIndices?` | `number`[] | The coordinates at which to begin searching for (inclusive). If a certain index is negative, the length of that axis of the array will be added to it. |
+| `maxDepth?` | `number` | The deepest axis the method will traverse. Defaults to `Infinity`. |
 | `thisArg?` | `any` | An object to which the `this` keyword can refer in the `predicate` function. If `thisArg` is omitted, `undefined` is used as the `this` value. |
 
 #### Returns
@@ -556,7 +567,7 @@ ___
 
 ### nestedEvery, nestedEveryFromLast
 
-▸ `array`<`T`\>.**nestedEvery**(`predicate`, `fromIndices?`, `thisArg?`): `boolean`
+▸ `array`<`T`\>.**nestedEvery**(`predicate`, `fromIndices?`, `maxDepth?`, `thisArg?`): `boolean`
 
 Determines whether all elements in a nested array satisfies the `predicate` function, searching forwards.
 
@@ -565,7 +576,7 @@ Determines whether all elements in a nested array satisfies the `predicate` func
 [[0, 1, 2], [3, 4, 5]].nestedEvery(n => n % 6 != 3, [0, 1]); // true
 ```
 
-▸ `array`<`T`\>.**nestedEveryFromLast**(`predicate`, `fromIndices?`, `thisArg?`): `boolean`
+▸ `array`<`T`\>.**nestedEveryFromLast**(`predicate`, `fromIndices?`, `maxDepth?`, `thisArg?`): `boolean`
 
 Determines whether all elements in a nested array satisfies the `predicate` function, searching backwards.
 
@@ -581,6 +592,7 @@ Determines whether all elements in a nested array satisfies the `predicate` func
 | `array` | `NDArray`<`T`\> | The original array. |
 | `predicate` | (`value`: `T`, `index`: `number`[], `array`: `NDArray`<`T`\>, `parent`: `NDArray`<`T`\>) => `unknown` | A function that accepts up to 4 arguments. The `nestedEvery` method calls the `predicate` function one time for each element in the array until it returns a falsy value. |
 | `fromIndices?` | `number`[] | The coordinates at which to begin searching for (inclusive). If a certain index is negative, the length of that axis of the array will be added to it. |
+| `maxDepth?` | `number` | The deepest axis the method will traverse. Defaults to `Infinity`. |
 | `thisArg?` | `any` | An object to which the `this` keyword can refer in the `predicate` function. If `thisArg` is omitted, `undefined` is used as the `this` value. |
 
 #### Returns

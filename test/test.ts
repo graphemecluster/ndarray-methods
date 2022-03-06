@@ -268,3 +268,70 @@ test("Examples in the documentation", () => {
   expect(array.nestedEveryFromLast(n => n % 6 != 2)).toBe(false);
   expect(array.nestedEveryFromLast(n => n % 6 != 2, [1, 1])).toBe(true);
 });
+
+test("maxDepth parameter", () => {
+  const array = tuple(3, 4, 5, 6).buildShape((...coords) => coords.join(""));
+
+  expect(array.shape(2)).toEqual([3, 4]);
+  expect(array.shape(8)).toEqual([3, 4, 5, 6]);
+  expect(array.shapeAtOrigin(2)).toEqual([3, 4]);
+  expect(array.shapeAtOrigin(8)).toEqual([3, 4, 5, 6]);
+
+  expect(
+    array.nestedMap((n, indices) => {
+      expect(n.shapeAtOrigin()).toEqual([5, 6]);
+      return indices;
+    }, 2)
+  ).toEqual(tuple(3, 4).buildShape((...coords) => coords));
+  let i = 0;
+  array.nestedForEach(n => {
+    expect(n.shapeAtOrigin()).toEqual([5, 6]);
+    i++;
+  }, 2);
+  expect(i).toBe(12);
+
+  expect(tuple("\n\n", "\n", " ", "").nestedJoin(array, 3)).toContain(",");
+  expect(tuple("\n\n", "\n", " ", "").nestedJoin(array, 2)).not.toContain(" ");
+
+  expect(array.nestedMap(n => n, 2).nestedFill([[]], undefined, undefined, 2)).toEqual(tuple(3, 4).buildShape([[]]));
+  expect(
+    array
+      .nestedMap(n => n, 2)
+      .nestedFillMap(
+        (n, indices) => {
+          expect(n.shapeAtOrigin()).toEqual([5, 6]);
+          return [[indices.join("")]];
+        },
+        undefined,
+        undefined,
+        2
+      )
+  ).toEqual(tuple(3, 4).buildShape((...coords) => [[coords.join("")]]));
+
+  expect(array.nestedIncludes(array[1][2], undefined, 2)).toBe(true);
+  expect(array.nestedIncludesFromLast(array[2][1], undefined, 2)).toBe(true);
+
+  expect(array.nestedIndexOf(array[1][2], undefined, 2)).toEqual([1, 2]);
+  expect(array.nestedLastIndexOf(array[2][1], undefined, 2)).toEqual([2, 1]);
+
+  expect(array.nestedFind(n => n == array[1][2], undefined, 2)).toBe(array[1][2]);
+  expect(array.nestedFindLast(n => n == array[2][1], undefined, 2)).toBe(array[2][1]);
+
+  expect(array.nestedFindIndex(n => n == array[1][2], undefined, 2)).toEqual([1, 2]);
+  expect(array.nestedFindLastIndex(n => n == array[2][1], undefined, 2)).toEqual([2, 1]);
+
+  const test = (c: boolean) => (n: string[][]) => {
+    const [a, b] = n.shapeAtOrigin();
+    return (a == 5 && b == 6) == c;
+  };
+
+  expect(array.nestedSome(n => n == array[1][2], undefined, 2)).toBe(true);
+  expect(array.nestedSomeFromLast(n => n == array[2][1], undefined, 2)).toBe(true);
+  expect(array.nestedSome(test(false), undefined, 2)).toBe(false);
+  expect(array.nestedSomeFromLast(test(false), undefined, 2)).toBe(false);
+
+  expect(array.nestedEvery(n => n != array[1][2], undefined, 2)).toBe(false);
+  expect(array.nestedEveryFromLast(n => n != array[2][1], undefined, 2)).toBe(false);
+  expect(array.nestedEvery(test(true), undefined, 2)).toBe(true);
+  expect(array.nestedEveryFromLast(test(true), undefined, 2)).toBe(true);
+});

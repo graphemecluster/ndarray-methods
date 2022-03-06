@@ -1,3 +1,4 @@
+require("ts-node/register");
 const path = require("path");
 
 /** @type { import("typescript").SourceFile } */
