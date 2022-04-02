@@ -23,7 +23,12 @@ const reduce: <T, U>(
 ) => U = call(ArrayPrototypeReduce);
 
 function isCallable(item: unknown): item is Function {
-  return typeof item === "function";
+  try {
+    forEach([], item as never);
+    return true;
+  } catch {
+    return false;
+  }
 }
 function hasLengthProperty(item: Object): item is ArrayLike<unknown> {
   return hasOwnProperty(item, "length");
@@ -90,7 +95,7 @@ export function buildShape<T>(array: number[], valueOrMapfn: T | ((...indices: n
         return Array.from<unknown, T | NDArray<T>>(
           { length },
           rest.length
-            ? (_, index) => recursive(rest, (...indices: number[]) => mapfn(index, ...indices))
+            ? (_, index) => recursive(rest, (...indices) => mapfn(index, ...indices))
             : (_, index) => mapfn.call(thisArg, index)
         );
       })(array, valueOrMapfn)

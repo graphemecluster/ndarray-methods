@@ -1,4 +1,5 @@
 import * as Library from "./main";
+import { buildShape, nestedSplit, nestedJoin } from "./main";
 
 Object.entries(Library).forEach(([name, method]) => {
   if (!(name in Array.prototype))
@@ -9,4 +10,9 @@ Object.entries(Library).forEach(([name, method]) => {
     });
 });
 
-export { NDArray, MDArray, BuildIndices, Indices, Shape, Map, ElementType, Access, Parent } from ".";
+Object.entries({ fromShape: buildShape, nestedSplit, nestedJoin }).forEach(([name, value]) => {
+  if (!(name in Array)) Object.defineProperty(Array, name, { value });
+});
+
+// prettier-ignore
+export { Infinity, NDArray, MDArray, ArrayOfLength, BuildIndices, Indices, Shape, Map, ElementType, Access, Parent, Cast, Narrow } from ".";

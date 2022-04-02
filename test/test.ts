@@ -1,11 +1,7 @@
 import "../dist/polyfill";
 
-function tuple<T extends readonly unknown[]>(...args: T) {
-  return args;
-}
-
 test("buildShape, nestedMap and nestedForEach", () => {
-  const zeros = tuple(3, 4, 5).buildShape(0);
+  const zeros = Array.fromShape([3, 4, 5], 0);
   expect(zeros).toEqual([
     [
       [0, 0, 0, 0, 0],
@@ -46,11 +42,11 @@ test("buildShape, nestedMap and nestedForEach", () => {
       ["230", "231", "232", "233", "234"],
     ],
   ];
-  expect(tuple(3, 4, 5).buildShape((...coords) => coords.join(""))).toEqual(expected);
-  expect(tuple(1, 1, 1, 1, 1, 1, 1, 0).buildShape("never")).toEqual([[[[[[[[]]]]]]]]);
+  expect(Array.fromShape([3, 4, 5], (...coords) => coords.join(""))).toEqual(expected);
+  expect(Array.fromShape([1, 1, 1, 1, 1, 1, 1, 0], "never")).toEqual([[[[[[[[]]]]]]]]);
 
   expect(zeros.nestedMap((_, coords) => coords.join(""))).toEqual(expected);
-  const values = tuple(3, 4, 5).buildShape("");
+  const values = Array.fromShape([3, 4, 5], "");
   zeros.nestedForEach((_, [x, y, z]) => (values[x][y][z] = "" + x + y + z));
   expect(values).toEqual(expected);
 });
@@ -81,7 +77,7 @@ test("nestedSplit and nestedJoin", () => {
     "694 857 132",
     "257 319 468",
   ].join("\n");
-  const board = tuple(/(?:\r?\n|\r){2}/, /\r?\n|\r/, " ", "").nestedSplit(string);
+  const board = Array.nestedSplit([/(?:\r?\n|\r){2}/, /\r?\n|\r/, " ", ""], string);
   // prettier-ignore
   expect(board).toEqual([
     [
@@ -100,11 +96,11 @@ test("nestedSplit and nestedJoin", () => {
       [["2", "5", "7"], ["3", "1", "9"], ["4", "6", "8"]],
     ],
   ]);
-  expect(tuple("\n\n", "\n", " ", "").nestedJoin(board)).toBe(string);
+  expect(Array.nestedJoin(["\n\n", "\n", " ", ""], board)).toBe(string);
 });
 
 test("nestedFill and nestedFillMap", () => {
-  const array = tuple(3, 4, 5).buildShape((...coords) => coords.join(""));
+  const array = Array.fromShape([3, 4, 5], (...coords) => coords.join(""));
   array.nestedFill("___", [0, 1, 2], [1, 3, 5]);
   expect(array).toEqual([
     [
@@ -150,7 +146,7 @@ test("nestedFill and nestedFillMap", () => {
 });
 
 test("nestedIncludes, nestedIncludesFromLast, nestedIndexOf and nestedLastIndexOf", () => {
-  const array = tuple(3, 4, 5).buildShape((...coords) => coords.join(""));
+  const array = Array.fromShape([3, 4, 5], (...coords) => coords.join(""));
 
   expect(array.nestedIncludes("123")).toBe(true);
   expect(array.nestedIncludes("456")).toBe(false);
@@ -172,7 +168,7 @@ test("nestedIncludes, nestedIncludesFromLast, nestedIndexOf and nestedLastIndexO
 });
 
 test("nestedFind, nestedFindLast, nestedFindIndex and nestedFindLastIndex", () => {
-  const array = tuple(3, 4, 5).buildShape((...coords) => coords.join(""));
+  const array = Array.fromShape([3, 4, 5], (...coords) => coords.join(""));
   const sum = (coords: number[]) => coords.reduce((a, b) => a + b);
 
   expect(array.nestedFind((_, coords) => sum(coords) >= 5)).toBe("014");
@@ -195,7 +191,7 @@ test("nestedFind, nestedFindLast, nestedFindIndex and nestedFindLastIndex", () =
 });
 
 test("nestedSome, nestedSomeFromLast, nestedEvery and nestedEveryFromLast", () => {
-  const array = tuple(3, 4, 5).buildShape((...coords) => coords.join(""));
+  const array = Array.fromShape([3, 4, 5], (...coords) => coords.join(""));
   const sum = (coords: number[]) => coords.reduce((a, b) => a + b);
 
   expect(array.nestedSome((_, coords) => sum(coords) >= 5)).toBe(true);
@@ -221,8 +217,8 @@ test("nestedSome, nestedSomeFromLast, nestedEvery and nestedEveryFromLast", () =
 test("Examples in the documentation", () => {
   const array = [[0, 1, 2], [3, 4, 5]];
 
-  expect(tuple(2, 3).buildShape((x, y) => x * 3 + y)).toEqual(array);
-  expect(tuple(2, 3).buildShape(10)).toEqual([[10, 10, 10], [10, 10, 10]]);
+  expect(Array.fromShape([2, 3], (x, y) => x * 3 + y)).toEqual(array);
+  expect(Array.fromShape([2, 3], 10)).toEqual([[10, 10, 10], [10, 10, 10]]);
 
   expect(array.shape()).toEqual([2, 3]);
   expect([[0, 1], [2, [3, 4], 5]].shape()).toEqual([2, 3, 2]);
@@ -230,8 +226,8 @@ test("Examples in the documentation", () => {
   expect([[0, 1], [2, [3, 4], 5]].shapeAtOrigin()).toEqual([2, 2]);
 
   expect(array.nestedMap(n => n + 10)).toEqual([[10, 11, 12], [13, 14, 15]]);
-  expect(tuple(/,|;/, "").nestedSplit("AB,CD;EF")).toEqual([["A", "B"], ["C", "D"], ["E", "F"]]);
-  expect(tuple(",", "").nestedJoin(array)).toBe("012,345");
+  expect(Array.nestedSplit([/,|;/, ""], "AB,CD;EF")).toEqual([["A", "B"], ["C", "D"], ["E", "F"]]);
+  expect(Array.nestedJoin([",", ""], array)).toBe("012,345");
 
   expect([[0, 1, 2], [3, 4, 5]].nestedFill(10)).toEqual([[10, 10, 10], [10, 10, 10]]);
   expect([[0, 1, 2], [3, 4, 5]].nestedFill(10, [0, 0], [2, 2])).toEqual([[10, 10, 2], [10, 10, 5]]);
@@ -270,7 +266,7 @@ test("Examples in the documentation", () => {
 });
 
 test("maxDepth parameter", () => {
-  const array = tuple(3, 4, 5, 6).buildShape((...coords) => coords.join(""));
+  const array = Array.fromShape([3, 4, 5, 6], (...coords) => coords.join(""));
 
   expect(array.shape(2)).toEqual([3, 4]);
   expect(array.shape(8)).toEqual([3, 4, 5, 6]);
@@ -282,7 +278,7 @@ test("maxDepth parameter", () => {
       expect(n.shapeAtOrigin()).toEqual([5, 6]);
       return indices;
     }, 2)
-  ).toEqual(tuple(3, 4).buildShape((...coords) => coords));
+  ).toEqual(Array.fromShape([3, 4], (...coords) => coords));
   let i = 0;
   array.nestedForEach(n => {
     expect(n.shapeAtOrigin()).toEqual([5, 6]);
@@ -290,10 +286,10 @@ test("maxDepth parameter", () => {
   }, 2);
   expect(i).toBe(12);
 
-  expect(tuple("\n\n", "\n", " ", "").nestedJoin(array, 3)).toContain(",");
-  expect(tuple("\n\n", "\n", " ", "").nestedJoin(array, 2)).not.toContain(" ");
+  expect(Array.nestedJoin(["\n\n", "\n", " ", ""], array, 3)).toContain(",");
+  expect(Array.nestedJoin(["\n\n", "\n", " ", ""], array, 2)).not.toContain(" ");
 
-  expect(array.nestedMap(n => n, 2).nestedFill([[]], undefined, undefined, 2)).toEqual(tuple(3, 4).buildShape([[]]));
+  expect(array.nestedMap(n => n, 2).nestedFill([[]], undefined, undefined, 2)).toEqual(Array.fromShape([3, 4], [[]]));
   expect(
     array
       .nestedMap(n => n, 2)
@@ -306,7 +302,7 @@ test("maxDepth parameter", () => {
         undefined,
         2
       )
-  ).toEqual(tuple(3, 4).buildShape((...coords) => [[coords.join("")]]));
+  ).toEqual(Array.fromShape([3, 4], (...coords) => [[coords.join("")]]));
 
   expect(array.nestedIncludes(array[1][2], undefined, 2)).toBe(true);
   expect(array.nestedIncludesFromLast(array[2][1], undefined, 2)).toBe(true);

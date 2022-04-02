@@ -3,9 +3,9 @@ import * as Library from "./main";
 export default Library;
 export * from "./main";
 
+export type Infinity = 1e600;
 export type NDArray<T> = (T | NDArray<T>)[];
 
-export type Infinity = 1e999;
 type ToNumberOrInfinity<M extends number> = number extends M ? Infinity : M;
 
 type FDArray<T, U> = U extends readonly [unknown, ...infer U] ? FDArray<T[], U> : T;

@@ -9,13 +9,5 @@
     "outDir": "./dist"
   },
   "include": ["./src"],
-  "exclude": ["./src/polyfill.ts"],
-  "typedocOptions": {
-    "entryPoints": ["./src/main.ts"],
-    "out": "docs",
-    "sort": "source-order",
-    "githubPages": false,
-    "disableSources": true,
-    "hideBreadcrumbs": true
-  }
+  "exclude": ["./src/polyfill.ts"]
 }

@@ -1,6 +1,10 @@
 import * as ts from "typescript";
 const { factory } = ts;
-
+const staticMethods: Record<string, string> = {
+  buildShape: "fromShape",
+  nestedSplit: "nestedSplit",
+  nestedJoin: "nestedJoin",
+};
 export default function Transformer(mainAST: ts.SourceFile, node: ts.SourceFile) {
   const source = mainAST.getFullText();
   return factory.updateSourceFile(node, [
@@ -82,7 +86,7 @@ export default function Transformer(mainAST: ts.SourceFile, node: ts.SourceFile)
           undefined,
           mainAST.statements
             .filter(ts.isFunctionDeclaration)
-            .filter(func => ts.isTypeOperatorNode(func.typeParameters![0].constraint!))
+            .filter(method => ts.isTypeOperatorNode(method.typeParameters![0].constraint!))
             .map(method =>
               ts.addSyntheticLeadingComment(
                 factory.createMethodSignature(
@@ -116,6 +120,33 @@ export default function Transformer(mainAST: ts.SourceFile, node: ts.SourceFile)
                 ),
                 ts.SyntaxKind.MultiLineCommentTrivia,
                 (({ pos, end }) => source.slice(pos + 2, end - 2).replace(/@param \w+/, "@param this"))(
+                  ts.getLeadingCommentRanges(source, method.getFullStart())![0]
+                ),
+                true
+              )
+            )
+        ),
+        factory.createInterfaceDeclaration(
+          undefined,
+          undefined,
+          "ArrayConstructor",
+          undefined,
+          undefined,
+          mainAST.statements
+            .filter(ts.isFunctionDeclaration)
+            .filter(method => method.name!.text in staticMethods)
+            .map(method =>
+              ts.addSyntheticLeadingComment(
+                factory.createMethodSignature(
+                  undefined,
+                  staticMethods[method.name!.text],
+                  undefined,
+                  method.typeParameters,
+                  method.parameters,
+                  method.type
+                ),
+                ts.SyntaxKind.MultiLineCommentTrivia,
+                (({ pos, end }) => source.slice(pos + 2, end - 2))(
                   ts.getLeadingCommentRanges(source, method.getFullStart())![0]
                 ),
                 true

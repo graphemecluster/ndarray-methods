@@ -17,13 +17,13 @@ npm install ndarray-methods
 #### Library Style
 
 ```html
-<script src="https://unpkg.com/ndarray-methods@1.1.0/dist/index.js" defer></script>
+<script src="https://unpkg.com/ndarray-methods@1.2.1/dist/index.js" defer></script>
 ```
 
 #### Polyfill Style
 
 ```html
-<script src="https://unpkg.com/ndarray-methods@1.1.0/dist/polyfill.js" defer></script>
+<script src="https://unpkg.com/ndarray-methods@1.2.1/dist/polyfill.js" defer></script>
 ```
 
 You don't need to include both of the above, just choose your preferred style.
@@ -80,7 +80,7 @@ levenshteinDistance("kitten", "sitting"); // 3
 
 ## Type Inferring
 
-It is recommended that you use a `tuple()` utility function while handling with shape or coordinates (or TypeScript's `as const`, whatever you want) to infer the more accurate type especially when using TypeScript:
+If you are using the polyfill style, it is recommended that you use a `tuple()` utility function while handling with shape or coordinates (or TypeScript's `as const`, whatever you want) to infer the more accurate type especially when using TypeScript:
 
 <!-- prettier-ignore -->
 ```js
@@ -102,6 +102,8 @@ Or if you're not using TypeScript:
 /** @type { <T extends unknown[]>(...args: T) => T } */
 function tuple(...args) { return args; }
 ```
+
+Alternatively, the static `fromShape`, `nestedSplit` and `nestedJoin` methods are available on the `Array` constructor starting from version 1.2.1, and they are equivalent to calling the `buildShape`, `nestedSplit` and `nestedJoin` methods on the `Array.prototype` with `.call()`.
 
 ## Notes
 
@@ -142,6 +144,10 @@ Builds a nested array with a specific shape and fills the array with the result 
 ```js
 [2, 3].buildShape((x, y) => x * 3 + y); // [[0, 1, 2], [3, 4, 5]]
 ```
+
+**Alias** (_only available on the `Array` constructor when using polyfill style_)
+
+▸ Array.**buildShape**(`array`<`T`\>, `mapfn`, `thisArg?`): `NDArray`<`T`\>
 
 #### Parameters
 
@@ -273,6 +279,10 @@ Splits a string into substrings using the specified separators for each axis and
 [/,|;/, ""].nestedSplit("AB,CD;EF"); // [["A", "B"], ["C", "D"], ["E", "F"]]
 ```
 
+**Alias** (_only available on the `Array` constructor when using polyfill style_)
+
+▸ Array.**nestedSplit**(`separators`, `content`): `NDArray`<`string`\>
+
 #### Parameters
 
 | Name | Type | Description |
@@ -297,6 +307,10 @@ Concatenates all the elements in a nested array into a string, separated by the 
 ```js
 [",", ""].nestedJoin([[0, 1, 2], [3, 4, 5]]); // "012,345"
 ```
+
+**Alias** (_only available on the `Array` constructor when using polyfill style_)
+
+▸ Array.**nestedJoin**(`separators`, `content`, `maxDepth?`): `string`
 
 #### Parameters
 
