@@ -17,13 +17,13 @@ npm install ndarray-methods
 #### Library Style
 
 ```html
-<script src="https://unpkg.com/ndarray-methods@1.2.1/dist/index.js" defer></script>
+<script src="https://unpkg.com/ndarray-methods@1.3.0/dist/index.js" defer></script>
 ```
 
 #### Polyfill Style
 
 ```html
-<script src="https://unpkg.com/ndarray-methods@1.2.1/dist/polyfill.js" defer></script>
+<script src="https://unpkg.com/ndarray-methods@1.3.0/dist/polyfill.js" defer></script>
 ```
 
 > ## Warning
