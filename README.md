@@ -26,7 +26,14 @@ npm install ndarray-methods
 <script src="https://unpkg.com/ndarray-methods@1.2.1/dist/polyfill.js" defer></script>
 ```
 
-You don't need to include both of the above, just choose your preferred style.
+> ## Warning
+>
+> The use of monkey-patching packages is discouraged by TC39 as it may cause web compatibility issues.
+> It is recommended not to use the polyfill style until the related proposal reaches Stage 1 in the TC39 process.
+> See the [Notes](#notes) Section below for more details.
+
+If you use TypeScript, version 1.3.0 requires TypeScript 5.0 or above for the `const` type parameter modifiers to work.
+Otherwise, use version 1.2.1.
 
 ### Using NDArray
 

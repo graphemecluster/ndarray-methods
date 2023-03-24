@@ -11,22 +11,19 @@ export default function Transformer(mainAST: ts.SourceFile, node: ts.SourceFile)
     (statement =>
       factory.updateImportDeclaration(
         statement,
-        statement.decorators,
         statement.modifiers,
         statement.importClause,
         factory.createStringLiteral("."),
         statement.assertClause
       ))(mainAST.statements[0] as ts.ImportDeclaration),
     factory.createModuleDeclaration(
-      undefined,
       [factory.createModifier(ts.SyntaxKind.DeclareKeyword)],
       factory.createIdentifier("global"),
       factory.createModuleBlock([
         factory.createInterfaceDeclaration(
           undefined,
-          undefined,
           "Array",
-          [factory.createTypeParameterDeclaration("T")],
+          [factory.createTypeParameterDeclaration(undefined, "T")],
           undefined,
           mainAST.statements
             .filter(ts.isFunctionDeclaration)
@@ -40,6 +37,7 @@ export default function Transformer(mainAST: ts.SourceFile, node: ts.SourceFile)
                     (parameter =>
                       factory.updateTypeParameterDeclaration(
                         parameter,
+                        parameter.modifiers,
                         parameter.name,
                         (type => (ts.isTypeOperatorNode(type!) ? type.type : type))(parameter.constraint),
                         parameter.default
@@ -50,7 +48,6 @@ export default function Transformer(mainAST: ts.SourceFile, node: ts.SourceFile)
                     (parameter =>
                       factory.updateParameterDeclaration(
                         parameter,
-                        parameter.decorators,
                         parameter.modifiers,
                         parameter.dotDotDotToken,
                         "this",
@@ -80,9 +77,8 @@ export default function Transformer(mainAST: ts.SourceFile, node: ts.SourceFile)
         ),
         factory.createInterfaceDeclaration(
           undefined,
-          undefined,
           "ReadonlyArray",
-          [factory.createTypeParameterDeclaration("T")],
+          [factory.createTypeParameterDeclaration(undefined, "T")],
           undefined,
           mainAST.statements
             .filter(ts.isFunctionDeclaration)
@@ -98,7 +94,6 @@ export default function Transformer(mainAST: ts.SourceFile, node: ts.SourceFile)
                     (parameter =>
                       factory.updateParameterDeclaration(
                         parameter,
-                        parameter.decorators,
                         parameter.modifiers,
                         parameter.dotDotDotToken,
                         "this",
@@ -127,7 +122,6 @@ export default function Transformer(mainAST: ts.SourceFile, node: ts.SourceFile)
             )
         ),
         factory.createInterfaceDeclaration(
-          undefined,
           undefined,
           "ArrayConstructor",
           undefined,

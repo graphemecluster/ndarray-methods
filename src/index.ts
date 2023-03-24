@@ -71,13 +71,9 @@ export type Access<T, U extends readonly unknown[]> = NDArray<T> extends T
   : _Access<T, U>;
 
 type Pop<T> = T extends readonly [...infer T, unknown] ? T : T;
-type Extract<T> = T extends readonly unknown[] ? T : never;
-export type Parent<T, M extends number = Infinity> = Extract<Access<T, Pop<Indices<T, ToNumberOrInfinity<M>>>>>;
+export type Parent<T, M extends number = Infinity> = Extract<
+  Access<T, Pop<Indices<T, ToNumberOrInfinity<M>>>>,
+  readonly unknown[]
+>;
 
-// Credit
-// https://github.com/microsoft/TypeScript/issues/48052#issuecomment-1053607666
-// https://github.com/microsoft/TypeScript/issues/30680#issuecomment-752725353
-// https://github.com/millsp/ts-toolbelt/blob/master/sources/Function/Narrow.ts
 export type Cast<A, B> = A extends B ? A : B;
-type _Narrow<A> = [] | (A extends string | number | bigint | boolean ? A : never) | { [K in keyof A]: _Narrow<A[K]> };
-export type Narrow<A> = Cast<A, _Narrow<A>>;

@@ -46,7 +46,7 @@ test("buildShape, nestedMap and nestedForEach", () => {
   expect(Array.fromShape([1, 1, 1, 1, 1, 1, 1, 0], "never")).toEqual([[[[[[[[]]]]]]]]);
 
   expect(zeros.nestedMap((_, coords) => coords.join(""))).toEqual(expected);
-  const values = Array.fromShape([3, 4, 5], "");
+  const values = Array.fromShape([3, 4, 5], [""][0]);
   zeros.nestedForEach((_, [x, y, z]) => (values[x][y][z] = "" + x + y + z));
   expect(values).toEqual(expected);
 });

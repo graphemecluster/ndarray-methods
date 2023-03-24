@@ -1,11 +1,12 @@
+// @ts-check
+
 require("ts-node/register");
 const path = require("path");
 
 /** @type { import("typescript").SourceFile } */
 let mainAST;
 
-/** @type { import("webpack").Configuration } */
-module.exports = {
+module.exports = /** @satisfies { import("webpack").Configuration } */ ({
   mode: "production",
   entry: {
     index: {
@@ -40,15 +41,15 @@ module.exports = {
         loader: "ts-loader",
         options: {
           getCustomTransformers: () =>
-            /** @type { import("typescript").CustomTransformers } */ ({
+            /** @satisfies { import("typescript").CustomTransformers } */ ({
               afterDeclarations: [
-                function () {
-                  return function (node) {
-                    if (!mainAST && node.fileName.endsWith("main.ts")) return (mainAST = node);
-                    else if (mainAST && node.fileName.endsWith("polyfill.ts"))
-                      return require("./scripts/transform").default(mainAST, node);
-                    else return node;
-                  };
+                () => node => {
+                  /** @type { (node: unknown) => asserts node is import("typescript").SourceFile } */ function assertSourceFile() {}
+                  assertSourceFile(node);
+                  if (!mainAST && node.fileName.endsWith("main.ts")) return (mainAST = node);
+                  else if (mainAST && node.fileName.endsWith("polyfill.ts"))
+                    return require("./scripts/transform").default(mainAST, node);
+                  else return node;
                 },
               ],
             }),
@@ -57,4 +58,4 @@ module.exports = {
     ],
   },
   devtool: "source-map",
-};
+});

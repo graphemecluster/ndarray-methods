@@ -1,9 +1,12 @@
-import { Infinity, NDArray, MDArray, BuildIndices, Indices, Shape, Map, ElementType, Parent, Cast, Narrow } from ".";
+import { Infinity, NDArray, MDArray, BuildIndices, Indices, Shape, Map, ElementType, Parent, Cast } from ".";
 
 function call<T, A extends unknown[], R>(method: (this: T, ...args: A) => R): (thisArg: T, ...args: A) => R {
   return (...args) => method.call(...args);
 }
-const hasOwnProperty: (object: Object, property: PropertyKey) => boolean = call(Object.prototype.hasOwnProperty);
+const hasOwn = call(Object.prototype.hasOwnProperty) as <P extends PropertyKey>(
+  object: Object,
+  property: P
+) => object is Record<P, unknown>;
 const ArrayPrototype = Array.prototype;
 const forEach: <T>(array: T[], callbackfn: (value: T, index: number, array: T[]) => void, thisArg?: any) => void = call(
   ArrayPrototype.forEach
@@ -30,13 +33,10 @@ function isCallable(item: unknown): item is Function {
     return false;
   }
 }
-function hasLengthProperty(item: Object): item is ArrayLike<unknown> {
-  return hasOwnProperty(item, "length");
-}
 function isArrayLike(item: unknown): item is unknown[] {
   if (Array.isArray(item)) return true;
-  if (!item || typeof item !== "object" || !hasLengthProperty(item) || typeof item.length !== "number") return false;
-  return !item.length || (item.length > 0 && hasOwnProperty(item, item.length - 1));
+  if (!item || typeof item !== "object" || !hasOwn(item, "length") || typeof item.length !== "number") return false;
+  return !item.length || (item.length > 0 && hasOwn(item, item.length - 1));
 }
 function assertNonEmpty(array: unknown[]) {
   if (!array.length) throw new RangeError("The length of the array must not be zero");
@@ -71,10 +71,10 @@ function toValidEndIndex(index: number | undefined, array: unknown[]) {
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns The array built with the specific shape.
  */
-export function buildShape<A extends readonly number[], T, This = undefined>(
-  array: Narrow<A>,
+export function buildShape<const A extends readonly number[], T, const This = undefined>(
+  array: A,
   mapfn: (this: This, ...indices: BuildIndices<A>) => T,
-  thisArg?: Narrow<This>
+  thisArg?: This
 ): MDArray<T, A>;
 
 /**
@@ -86,7 +86,7 @@ export function buildShape<A extends readonly number[], T, This = undefined>(
  * @param value The value to fill the array with.
  * @returns The array built with the specific shape.
  */
-export function buildShape<A extends readonly number[], T>(array: Narrow<A>, value: T): MDArray<T, A>;
+export function buildShape<const A extends readonly number[], T>(array: A, value: T): MDArray<T, A>;
 
 export function buildShape<T>(array: number[], valueOrMapfn: T | ((...indices: number[]) => T), thisArg?: any) {
   assertNonEmpty(array);
@@ -118,9 +118,9 @@ export function buildShape<T>(array: number[], valueOrMapfn: T | ((...indices: n
  * @param maxDepth The deepest axis the method will traverse. Defaults to `Infinity`.
  * @returns A number array containing the lengths of each axis of the array.
  */
-export function shape<A extends readonly unknown[], M extends number = Infinity>(
+export function shape<A extends readonly unknown[], const M extends number = Infinity>(
   array: A,
-  maxDepth?: Narrow<M>
+  maxDepth?: M
 ): Shape<A, M>;
 
 export function shape(array: NDArray<unknown>, maxDepth = Infinity) {
@@ -151,9 +151,9 @@ export function shape(array: NDArray<unknown>, maxDepth = Infinity) {
  * @param maxDepth The deepest axis the method will traverse. Defaults to `Infinity`.
  * @returns A number array containing the lengths of each axis of the array.
  */
-export function shapeAtOrigin<A extends readonly unknown[], M extends number = Infinity>(
+export function shapeAtOrigin<A extends readonly unknown[], const M extends number = Infinity>(
   array: A,
-  maxDepth?: Narrow<M>
+  maxDepth?: M
 ): Shape<A, M>;
 
 export function shapeAtOrigin(array: NDArray<unknown>, maxDepth = Infinity) {
@@ -176,11 +176,11 @@ export function shapeAtOrigin(array: NDArray<unknown>, maxDepth = Infinity) {
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns The mapped array.
  */
-export function nestedMap<A extends readonly unknown[], U, M extends number = Infinity, This = undefined>(
+export function nestedMap<A extends readonly unknown[], U, const M extends number = Infinity, const This = undefined>(
   array: A,
   callbackfn: (this: This, value: ElementType<A, M>, indices: Indices<A, M>, array: A, parent: Parent<A, M>) => U,
-  maxDepth?: Narrow<M>,
-  thisArg?: Narrow<This>
+  maxDepth?: M,
+  thisArg?: This
 ): Map<A, U, M>;
 
 export function nestedMap<T, U>(
@@ -212,11 +212,16 @@ export function nestedMap<T, U>(
  * @param thisArg An object to which the `this` keyword can refer in the `callbackfn` function.
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  */
-export function nestedForEach<A extends readonly unknown[], U, M extends number = Infinity, This = undefined>(
+export function nestedForEach<
+  A extends readonly unknown[],
+  U,
+  const M extends number = Infinity,
+  const This = undefined
+>(
   array: A,
   callbackfn: (this: This, value: ElementType<A, M>, indices: Indices<A, M>, array: A, parent: Parent<A, M>) => U,
-  maxDepth?: Narrow<M>,
-  thisArg?: Narrow<This>
+  maxDepth?: M,
+  thisArg?: This
 ): void;
 
 export function nestedForEach<T>(
@@ -245,8 +250,8 @@ export function nestedForEach<T>(
  * @param content The string to split.
  * @returns The splitted string as a nested array.
  */
-export function nestedSplit<A extends readonly (string | RegExp)[]>(
-  separators: Narrow<A>,
+export function nestedSplit<const A extends readonly (string | RegExp)[]>(
+  separators: A,
   content: string
 ): MDArray<string, A>;
 
@@ -268,8 +273,8 @@ export function nestedSplit(separators: (string | RegExp)[], content: string) {
  * @param maxDepth The deepest axis the method will traverse. Defaults to `Infinity`.
  * @returns A string with all the elements concatenated.
  */
-export function nestedJoin<A extends readonly string[]>(
-  separators: Narrow<A>,
+export function nestedJoin<const A extends readonly string[]>(
+  separators: A,
   content: MDArray<unknown, A>,
   maxDepth?: number
 ): string;
@@ -299,12 +304,12 @@ export function nestedJoin(separators: string[], content: NDArray<unknown>, maxD
  * @param maxDepth The deepest axis the method will traverse. Defaults to `Infinity`.
  * @returns The modified array, which the instance is the same as the original array.
  */
-export function nestedFill<A extends unknown[], M extends number = Infinity>(
+export function nestedFill<A extends unknown[], const M extends number = Infinity>(
   array: A,
   value: ElementType<A, M>,
   startIndices?: Indices<A, M>,
   endIndices?: Indices<A, M>,
-  maxDepth?: Narrow<M>
+  maxDepth?: M
 ): A;
 
 export function nestedFill<T>(
@@ -348,7 +353,7 @@ export function nestedFill<T>(
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns The modified array, which the instance is the same as the original array.
  */
-export function nestedFillMap<A extends unknown[], M extends number = Infinity, This = undefined>(
+export function nestedFillMap<A extends unknown[], const M extends number = Infinity, const This = undefined>(
   array: A,
   callbackfn: (
     this: This,
@@ -359,8 +364,8 @@ export function nestedFillMap<A extends unknown[], M extends number = Infinity, 
   ) => ElementType<A, M>,
   startIndices?: Indices<A, M>,
   endIndices?: Indices<A, M>,
-  maxDepth?: Narrow<M>,
-  thisArg?: Narrow<This>
+  maxDepth?: M,
+  thisArg?: This
 ): A;
 
 export function nestedFillMap<T>(
@@ -401,11 +406,11 @@ export function nestedFillMap<T>(
  * @param maxDepth The deepest axis the method will traverse. Defaults to `Infinity`.
  * @returns `true` if the element is found in the array, or `false` otherwise.
  */
-export function nestedIncludes<A extends readonly unknown[], M extends number = Infinity>(
+export function nestedIncludes<A extends readonly unknown[], const M extends number = Infinity>(
   array: A,
   searchElement: ElementType<A, M>,
   fromIndices?: Indices<A, M>,
-  maxDepth?: Narrow<M>
+  maxDepth?: M
 ): boolean;
 
 export function nestedIncludes<T>(
@@ -440,11 +445,11 @@ export function nestedIncludes<T>(
  * @param maxDepth The deepest axis the method will traverse. Defaults to `Infinity`.
  * @returns `true` if the element is found in the array, or `false` otherwise.
  */
-export function nestedIncludesFromLast<A extends readonly unknown[], M extends number = Infinity>(
+export function nestedIncludesFromLast<A extends readonly unknown[], const M extends number = Infinity>(
   array: A,
   searchElement: ElementType<A, M>,
   fromIndices?: Indices<A, M>,
-  maxDepth?: Narrow<M>
+  maxDepth?: M
 ): boolean;
 
 export function nestedIncludesFromLast<T>(
@@ -479,11 +484,11 @@ export function nestedIncludesFromLast<T>(
  * @param maxDepth The deepest axis the method will traverse. Defaults to `Infinity`.
  * @returns A number array containing the coordinates of the element, or `undefined` if it is not present.
  */
-export function nestedIndexOf<A extends readonly unknown[], M extends number = Infinity>(
+export function nestedIndexOf<A extends readonly unknown[], const M extends number = Infinity>(
   array: A,
   searchElement: ElementType<A, M>,
   fromIndices?: Indices<A, M>,
-  maxDepth?: Narrow<M>
+  maxDepth?: M
 ): Indices<A, M> | undefined;
 
 export function nestedIndexOf<T>(array: NDArray<T>, searchElement: T, fromIndices: number[] = [], maxDepth = Infinity) {
@@ -515,11 +520,11 @@ export function nestedIndexOf<T>(array: NDArray<T>, searchElement: T, fromIndice
  * @param maxDepth The deepest axis the method will traverse. Defaults to `Infinity`.
  * @returns A number array containing the coordinates of the element, or `undefined` if it is not present.
  */
-export function nestedLastIndexOf<A extends readonly unknown[], M extends number = Infinity>(
+export function nestedLastIndexOf<A extends readonly unknown[], const M extends number = Infinity>(
   array: A,
   searchElement: ElementType<A, M>,
   fromIndices?: Indices<A, M>,
-  maxDepth?: Narrow<M>
+  maxDepth?: M
 ): Indices<A, M> | undefined;
 
 export function nestedLastIndexOf<T>(
@@ -562,8 +567,8 @@ export function nestedLastIndexOf<T>(
 export function nestedFind<
   A extends readonly unknown[],
   S extends ElementType<A, M>,
-  M extends number = Infinity,
-  This = undefined
+  const M extends number = Infinity,
+  const This = undefined
 >(
   array: A,
   predicate: (
@@ -574,8 +579,8 @@ export function nestedFind<
     parent: Parent<A, M>
   ) => value is S,
   fromIndices?: Indices<A, M>,
-  maxDepth?: Narrow<M>,
-  thisArg?: Narrow<This>
+  maxDepth?: M,
+  thisArg?: This
 ): S | undefined;
 
 /**
@@ -595,12 +600,12 @@ export function nestedFind<
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns The value of the first element in the array that satisfies the `predicate` function, or `undefined` if there is no such element.
  */
-export function nestedFind<A extends readonly unknown[], M extends number = Infinity, This = undefined>(
+export function nestedFind<A extends readonly unknown[], const M extends number = Infinity, const This = undefined>(
   array: A,
   predicate: (this: This, value: ElementType<A, M>, indices: Indices<A, M>, array: A, parent: Parent<A, M>) => unknown,
   fromIndices?: Indices<A, M>,
-  maxDepth?: Narrow<M>,
-  thisArg?: Narrow<This>
+  maxDepth?: M,
+  thisArg?: This
 ): ElementType<A, M> | undefined;
 
 export function nestedFind<T>(
@@ -644,8 +649,8 @@ export function nestedFind<T>(
 export function nestedFindLast<
   A extends readonly unknown[],
   S extends ElementType<A, M>,
-  M extends number = Infinity,
-  This = undefined
+  const M extends number = Infinity,
+  const This = undefined
 >(
   array: A,
   predicate: (
@@ -656,8 +661,8 @@ export function nestedFindLast<
     parent: Parent<A, M>
   ) => value is S,
   fromIndices?: Indices<A, M>,
-  maxDepth?: Narrow<M>,
-  thisArg?: Narrow<This>
+  maxDepth?: M,
+  thisArg?: This
 ): S | undefined;
 
 /**
@@ -677,12 +682,12 @@ export function nestedFindLast<
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns The value of the last element in the array that satisfies the `predicate` function, or `undefined` if there is no such element.
  */
-export function nestedFindLast<A extends readonly unknown[], M extends number = Infinity, This = undefined>(
+export function nestedFindLast<A extends readonly unknown[], const M extends number = Infinity, const This = undefined>(
   array: A,
   predicate: (this: This, value: ElementType<A, M>, indices: Indices<A, M>, array: A, parent: Parent<A, M>) => unknown,
   fromIndices?: Indices<A, M>,
-  maxDepth?: Narrow<M>,
-  thisArg?: Narrow<This>
+  maxDepth?: M,
+  thisArg?: This
 ): ElementType<A, M> | undefined;
 
 export function nestedFindLast<T>(
@@ -723,12 +728,16 @@ export function nestedFindLast<T>(
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns The coordinates of the first element in the array that satisfies the `predicate` function, or `undefined` if there is no such element.
  */
-export function nestedFindIndex<A extends readonly unknown[], M extends number = Infinity, This = undefined>(
+export function nestedFindIndex<
+  A extends readonly unknown[],
+  const M extends number = Infinity,
+  const This = undefined
+>(
   array: A,
   predicate: (this: This, value: ElementType<A, M>, indices: Indices<A, M>, array: A, parent: Parent<A, M>) => unknown,
   fromIndices?: Indices<A, M>,
-  maxDepth?: Narrow<M>,
-  thisArg?: Narrow<This>
+  maxDepth?: M,
+  thisArg?: This
 ): Indices<A, M> | undefined;
 
 export function nestedFindIndex<T>(
@@ -769,12 +778,16 @@ export function nestedFindIndex<T>(
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns The coordinates of the last element in the array that satisfies the `predicate` function, or `undefined` if there is no such element.
  */
-export function nestedFindLastIndex<A extends readonly unknown[], M extends number = Infinity, This = undefined>(
+export function nestedFindLastIndex<
+  A extends readonly unknown[],
+  const M extends number = Infinity,
+  const This = undefined
+>(
   array: A,
   predicate: (this: This, value: ElementType<A, M>, indices: Indices<A, M>, array: A, parent: Parent<A, M>) => unknown,
   fromIndices?: Indices<A, M>,
-  maxDepth?: Narrow<M>,
-  thisArg?: Narrow<This>
+  maxDepth?: M,
+  thisArg?: This
 ): Indices<A, M> | undefined;
 
 export function nestedFindLastIndex<T>(
@@ -815,12 +828,12 @@ export function nestedFindLastIndex<T>(
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns `true` if at least one element in the array satisfies the `predicate` function, or `false` otherwise.
  */
-export function nestedSome<A extends readonly unknown[], M extends number = Infinity, This = undefined>(
+export function nestedSome<A extends readonly unknown[], const M extends number = Infinity, const This = undefined>(
   array: A,
   predicate: (this: This, value: ElementType<A, M>, indices: Indices<A, M>, array: A, parent: Parent<A, M>) => unknown,
   fromIndices?: Indices<A, M>,
-  maxDepth?: Narrow<M>,
-  thisArg?: Narrow<This>
+  maxDepth?: M,
+  thisArg?: This
 ): boolean;
 
 export function nestedSome<T>(
@@ -860,12 +873,16 @@ export function nestedSome<T>(
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns `true` if at least one element in the array satisfies the `predicate` function, or `false` otherwise.
  */
-export function nestedSomeFromLast<A extends readonly unknown[], M extends number = Infinity, This = undefined>(
+export function nestedSomeFromLast<
+  A extends readonly unknown[],
+  const M extends number = Infinity,
+  const This = undefined
+>(
   array: A,
   predicate: (this: This, value: ElementType<A, M>, indices: Indices<A, M>, array: A, parent: Parent<A, M>) => unknown,
   fromIndices?: Indices<A, M>,
-  maxDepth?: Narrow<M>,
-  thisArg?: Narrow<This>
+  maxDepth?: M,
+  thisArg?: This
 ): boolean;
 
 export function nestedSomeFromLast<T>(
@@ -908,8 +925,8 @@ export function nestedSomeFromLast<T>(
 export function nestedEvery<
   A extends readonly unknown[],
   S extends ElementType<A, M>,
-  M extends number = Infinity,
-  This = undefined
+  const M extends number = Infinity,
+  const This = undefined
 >(
   array: A,
   predicate: (
@@ -920,8 +937,8 @@ export function nestedEvery<
     parent: Parent<A, M>
   ) => value is S,
   fromIndices?: Indices<A, M>,
-  maxDepth?: Narrow<M>,
-  thisArg?: Narrow<This>
+  maxDepth?: M,
+  thisArg?: This
 ): array is Cast<Map<A, S, M>, A>;
 
 /**
@@ -941,12 +958,12 @@ export function nestedEvery<
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns `true` if all elements in the array satisfies the `predicate` function, or `false` otherwise.
  */
-export function nestedEvery<A extends readonly unknown[], M extends number = Infinity, This = undefined>(
+export function nestedEvery<A extends readonly unknown[], const M extends number = Infinity, const This = undefined>(
   array: A,
   predicate: (this: This, value: ElementType<A, M>, indices: Indices<A, M>, array: A, parent: Parent<A, M>) => unknown,
   fromIndices?: Indices<A, M>,
-  maxDepth?: Narrow<M>,
-  thisArg?: Narrow<This>
+  maxDepth?: M,
+  thisArg?: This
 ): boolean;
 
 export function nestedEvery<T>(
@@ -989,8 +1006,8 @@ export function nestedEvery<T>(
 export function nestedEveryFromLast<
   A extends readonly unknown[],
   S extends ElementType<A, M>,
-  M extends number = Infinity,
-  This = undefined
+  const M extends number = Infinity,
+  const This = undefined
 >(
   array: A,
   predicate: (
@@ -1001,8 +1018,8 @@ export function nestedEveryFromLast<
     parent: Parent<A, M>
   ) => value is S,
   fromIndices?: Indices<A, M>,
-  maxDepth?: Narrow<M>,
-  thisArg?: Narrow<This>
+  maxDepth?: M,
+  thisArg?: This
 ): array is Cast<Map<A, S, M>, A>;
 
 /**
@@ -1022,12 +1039,16 @@ export function nestedEveryFromLast<
  * If `thisArg` is omitted, `undefined` is used as the `this` value.
  * @returns `true` if all elements in the array satisfies the `predicate` function, or `false` otherwise.
  */
-export function nestedEveryFromLast<A extends readonly unknown[], M extends number = Infinity, This = undefined>(
+export function nestedEveryFromLast<
+  A extends readonly unknown[],
+  const M extends number = Infinity,
+  const This = undefined
+>(
   array: A,
   predicate: (this: This, value: ElementType<A, M>, indices: Indices<A, M>, array: A, parent: Parent<A, M>) => unknown,
   fromIndices?: Indices<A, M>,
-  maxDepth?: Narrow<M>,
-  thisArg?: Narrow<This>
+  maxDepth?: M,
+  thisArg?: This
 ): boolean;
 
 export function nestedEveryFromLast<T>(
